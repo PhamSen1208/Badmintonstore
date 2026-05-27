@@ -1,0 +1,28 @@
+bin/
+obj/
+.vs/
+.vscode/
+*.user
+*.suo
+*.rsuser
+
+# Build output
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# NuGet
+*.nupkg
+packages/
+project.assets.json
+project.nuget.cache
+
+# Logs
+*.log
+
+# Local env / secrets
+appsettings.Development.json
+
+# Recovered temporary files
+recovered_from_dll/

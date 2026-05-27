@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="BadmintonStores.Api/BadmintonStores.Api.csproj" />
+  <Project Path="BadmintonStores.Application/BadmintonStores.Application.csproj" />
+  <Project Path="BadmintonStores.Domain/BadmintonStores.Domain.csproj" />
+  <Project Path="BadmintonStores.Infrastructure/BadmintonStores.Infrastructure.csproj" />
+</Solution>
