@@ -2,10 +2,10 @@ namespace BadmintonStores.Api.Responses.Products;
 
 public class GetProductsResponse
 {
-    public List<GetProductsItemResponse> Items {get; set;} = new();
+    public List<GetProductsItemResponse> Items {get; set;} = new List<GetProductsItemResponse>();
 
     public int PageNumber {get; set;}
-    public int pageSize {get; set;}
+    public int PageSize {get; set;}
     public int TotalItems {get; set;}
     public int TotalPages {get ; set;}
 }

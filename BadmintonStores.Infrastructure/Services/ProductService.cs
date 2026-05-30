@@ -56,13 +56,13 @@ public class ProductService : IProductService
     {
         if(productId <= 0)
         {
-            throw new ValidationException("PRODUCT_NOT_FOUND", "Mã sản phẩm không hợp lệ");
+            throw new NotFoundException("PRODUCT_NOT_FOUND", "Mã sản phẩm không hợp lệ");
         }
 
         var product = await _dbContext.Products.FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
         if(product == null)
         {
-            throw new ValidationException("PRODUCT_NOT_FOUND", "Không tìm thấy sản phẩm");
+            throw new NotFoundException("PRODUCT_NOT_FOUND", "Không tìm thấy sản phẩm");
         }
 
         return new GetProductDetailResult
@@ -152,6 +152,59 @@ public class ProductService : IProductService
             UpdatedAt = product.UpdatedAt
         };
     }
+
+    public async Task<GetProductsResult> GetProductsAsync(GetProductsQuery request, CancellationToken cancellationToken)
+    {
+        var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
+        var pageSize = request.PageSize <= 0 ? 20 : request.PageSize;
+
+        pageSize = pageSize > 100 ? 100 : pageSize; // Giới hạn
+
+        var productsQuery = _dbContext.Products.AsQueryable();
+
+        //filter theo keyword
+        if(!string.IsNullOrWhiteSpace(request.Keyword))
+        {
+            var keyword = request.Keyword.Trim();
+            productsQuery = productsQuery.Where(
+                p => p.ProductCode.Contains(keyword) ||
+                p.ProductName.Contains(request.Keyword));
+        }
+
+        //filter theo trạng thái
+        if(!string.IsNullOrWhiteSpace(request.Status))
+        {
+            var status = ParseRecordStatus(request.Status);
+            productsQuery = productsQuery.Where(p => p.Status == status);
+        }
+
+        var totalItems = await productsQuery.CountAsync(cancellationToken);
+        var totalPages = (int)Math.Ceiling(totalItems/(double)pageSize);
+
+        var items = await productsQuery
+            .OrderByDescending(p => p.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .Select(p => new GetProductsItemResult
+            {
+                ProductId = p.Id,
+                ProductCode = p.ProductCode,
+                ProductName = p.ProductName,
+                BasePrice = p.BasePrice,
+                Status = p.Status.ToString().ToLowerInvariant(),
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt
+            }).ToListAsync(cancellationToken);
+        
+        return new GetProductsResult
+        {
+            Items = items,
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalItems = totalItems,
+            TotalPages = totalPages
+        };
+    } 
 
     private static void ValidateRequest(CreateProductDto request)
     {

@@ -46,7 +46,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet("{productId:int}")]
-    public async Task<IActionResult> GetProductDetail( int productId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetProductDetail(int productId, CancellationToken cancellationToken)
     {
         var result = await _productService.GetProductByIdAsync(productId, cancellationToken);
         var response = new GetProductDetailResponse
@@ -112,5 +112,40 @@ public class ProductsController : ControllerBase
         };
 
         return Ok(ApiResponse<UpdateProductStatusResponse>.Ok(response, "Cập nhật trạng thái sản phẩm thành công"));
+    }
+
+    // Tìm kiếm và lọc sản phẩm cơ bản
+    [HttpGet]
+    public async Task<IActionResult> GetProducts([FromQuery] GetProductsRequest request, CancellationToken cancellationToken)
+    {
+        var query = new GetProductsQuery // Map GetProductsRequest sang DTO
+        {
+            Keyword = request.Keyword, 
+            PageNumber = request.PageNumber,
+            PageSize = request.PageSize,
+            Status = request.Status
+        };
+
+        var result = await _productService.GetProductsAsync(query,cancellationToken);
+
+        var response = new GetProductsResponse
+        {
+            PageNumber = result.PageNumber,
+            PageSize = result.PageSize,
+            TotalItems = result.TotalItems,
+            TotalPages = result.TotalPages,
+
+            Items = result.Items.Select(o => new GetProductsItemResponse
+            {
+                ProductId = o.ProductId,
+                ProductCode = o.ProductCode,
+                ProductName = o.ProductName,
+                BasePrice = o.BasePrice,
+                Status = o.Status,
+                CreatedAt = o.CreatedAt,
+                UpdatedAt = o.UpdatedAt,
+            }).ToList()
+        };
+        return Ok(ApiResponse<GetProductsResponse>.Ok(response, "Lấy danh sách đơn hàng thành công"));
     }
 }

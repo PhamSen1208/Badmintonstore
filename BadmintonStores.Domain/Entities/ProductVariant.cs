@@ -12,7 +12,7 @@ public class ProductVariant
     public decimal Price {get; set;}
     public decimal? SalePrice {get; set;}
     public decimal? Weight {get; set;}
-    public string? Color { get; set; }
+        public string? Color { get; set; }
     public string? Size { get; set; }
 
     public RecordStatus Status {get; set;} = RecordStatus.Active;

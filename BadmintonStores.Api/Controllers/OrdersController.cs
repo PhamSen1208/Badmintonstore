@@ -123,6 +123,7 @@ public class OrdersController : ControllerBase
             PageSize = result.PageSize,
             TotalItems = result.TotalItems,
             TotalPages = result.TotalPages,
+            
             Items = result.Items.Select(o => new GetOrderItemResponse
             {
                 OrderId = o.OrderId,
