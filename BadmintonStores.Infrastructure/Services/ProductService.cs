@@ -167,8 +167,8 @@ public class ProductService : IProductService
         {
             var keyword = request.Keyword.Trim();
             productsQuery = productsQuery.Where(
-                p => p.ProductCode.Contains(keyword) ||
-                p.ProductName.Contains(request.Keyword));
+                p => p.ProductCode.ToLower().Contains(keyword) ||
+                p.ProductName.ToLower().Contains(request.Keyword));
         }
 
         //filter theo trạng thái

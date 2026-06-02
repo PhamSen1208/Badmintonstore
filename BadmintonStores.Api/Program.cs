@@ -20,6 +20,8 @@ builder.Services.AddScoped<IOrderService, OrderService>(); // Đăng ký OrderSe
 builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddScoped<IProductVariantService, ProductVariantService>();
 builder.Services.AddScoped<IStockService, StockService>();
+builder.Services.AddScoped<IWarehouseService, WarehouseService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 
 var app = builder.Build();
 
@@ -30,7 +32,7 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(dbContext); // Gọi phương thức seed dữ liệu
 }
 
-// Configure the HTTP reques    t pipeline.
+// Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // if (app.Environment.IsDevelopment())

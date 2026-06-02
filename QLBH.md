@@ -660,3 +660,337 @@ Keep Phase 1 simple:
 - No brand/category.
 - No complex search.
 - ProductVariant CRUD can be added after Product CRUD is stable.
+
+## Stock / Warehouse Notes
+
+Warehouse and Stock are different concepts:
+
+- Warehouse = physical place that stores goods.
+- ProductVariant = exact sellable SKU, for example racket blue 4U.
+- Stock = current quantity of one ProductVariant in one Warehouse.
+- InventoryTransaction = history explaining why stock quantity changed.
+
+Easy rule:
+
+```text
+Warehouse answers: where is the item stored?
+ProductVariant answers: which exact SKU is it?
+Stock answers: how many units are currently available in that warehouse?
+InventoryTransaction answers: why did the quantity change?
+```
+
+Example:
+
+```text
+Warehouses
+- Id 1: WH-HCM, Kho HCM
+- Id 2: WH-HN, Kho Ha Noi
+
+ProductVariants
+- Id 10: YONEX-BLUE-4U
+- Id 11: YONEX-RED-3U
+
+Stocks
+- StockId 1: WarehouseId 1, ProductVariantId 10, Quantity 20
+- StockId 2: WarehouseId 1, ProductVariantId 11, Quantity 5
+- StockId 3: WarehouseId 2, ProductVariantId 10, Quantity 8
+```
+
+Meaning:
+
+- Kho HCM has 20 units of YONEX-BLUE-4U.
+- Kho HCM has 5 units of YONEX-RED-3U.
+- Kho Ha Noi has 8 units of YONEX-BLUE-4U.
+
+Do not store Quantity directly on ProductVariant because the same SKU can exist in many warehouses.
+
+## Stock Module Planned Endpoints
+
+Recommended Phase 1 endpoints:
+
+```http
+GET   /api/warehouses/{warehouseId}/stocks
+POST  /api/stocks
+PATCH /api/stocks/{stockId}
+```
+
+### GET /api/warehouses/{warehouseId}/stocks
+
+Purpose:
+
+- View all stock rows inside one warehouse.
+- Used by admin to see which SKUs exist in a warehouse and their current quantities.
+
+Service flow:
+
+1. Validate warehouseId > 0.
+2. Check Warehouse exists.
+3. Query Stocks by WarehouseId.
+4. Load ProductVariant to get SKU.
+5. Load Product through ProductVariant to get ProductName.
+6. Return warehouse info plus stock item list.
+
+Important navigation path:
+
+```text
+Stock -> ProductVariant -> Product
+```
+
+So this is valid:
+
+```csharp
+.Include(s => s.ProductVariant)
+.ThenInclude(v => v.Product)
+```
+
+### POST /api/stocks
+
+Purpose:
+
+- Create initial stock balance for one ProductVariant in one Warehouse.
+
+Request example:
+
+```json
+{
+  "warehouseId": 1,
+  "productVariantId": 10,
+  "quantity": 20
+}
+```
+
+Service flow:
+
+1. Validate warehouseId > 0.
+2. Validate productVariantId > 0.
+3. Validate quantity >= 0.
+4. Check Warehouse exists.
+5. Check ProductVariant exists.
+6. Check Stock does not already exist for the same WarehouseId + ProductVariantId.
+7. Begin transaction.
+8. Insert Stock.
+9. Insert InventoryTransaction with type Adjustment.
+10. Commit.
+11. Return StockResponse.
+
+Rule:
+
+```text
+One WarehouseId + ProductVariantId pair can have only one Stock row.
+```
+
+### PATCH /api/stocks/{stockId}
+
+Purpose:
+
+- Manually set the current stock quantity.
+- This is an adjustment, not a sale.
+
+Request example:
+
+```json
+{
+  "quantity": 30,
+  "note": "Manual stock adjustment"
+}
+```
+
+Important:
+
+```text
+quantity = new current quantity
+```
+
+It is not "add this quantity".
+
+Example:
+
+```text
+Current Quantity = 20
+Request Quantity = 30
+changedQuantity = 30 - 20 = +10
+```
+
+Service flow:
+
+1. Validate stockId > 0.
+2. Validate quantity >= 0.
+3. Find Stock by stockId.
+4. Calculate quantityBefore, quantityAfter, changedQuantity.
+5. Begin transaction.
+6. Update Stock.Quantity.
+7. Update Stock.UpdatedAt.
+8. Insert InventoryTransaction with type Adjustment.
+9. Commit.
+10. Return StockResponse.
+
+## Stock And InventoryTransaction
+
+Stock is the current balance:
+
+```text
+Stock.Quantity = 18
+```
+
+InventoryTransaction is the history:
+
+```text
++20 Initial stock
+-2  Sale order ORD000001
++7  Manual adjustment
+-7  Sale order ORD000002
+```
+
+Create order flow uses stock like this:
+
+1. Request contains warehouseId and productVariantId.
+2. OrderService finds Stock by WarehouseId + ProductVariantId.
+3. If Quantity is not enough, return INSUFFICIENT_STOCK.
+4. If enough, subtract stock quantity.
+5. Insert InventoryTransaction with type Sale and negative quantity.
+
+ReservedQuantity exists for future expansion:
+
+- Phase 1 does not use reserved stock deeply.
+- Phase 1 subtracts Stock.Quantity directly when creating order.
+- Later ecommerce flow can use Available = Quantity - ReservedQuantity.
+
+## Stock Helper Method
+
+`GetStockResultAsync(stockId)` is a private helper in StockService.
+
+Purpose:
+
+- Query one stock row by stockId.
+- Include Warehouse.
+- Include ProductVariant and Product.
+- Map full information to StockResult.
+
+Why it exists:
+
+- After create/update stock, the tracked Stock entity only has IDs and quantity.
+- API response needs WarehouseCode, WarehouseName, SKU, and ProductName.
+- The helper avoids duplicating the same mapping logic in create/update methods.
+
+## Phase 1 Progress Update
+
+Current implemented modules:
+
+- Orders
+  - Create order.
+  - Get order detail.
+  - Get order list/filter.
+  - Cancel order.
+  - Update order note.
+- Products
+  - Create product.
+  - Get product detail.
+  - Get product list/filter.
+  - Update product.
+  - Update product status.
+- ProductVariants
+  - Create product variant.
+  - Get product variant detail.
+  - Get product variants by product.
+  - Update product variant.
+  - Update product variant status.
+- Stocks
+  - Get stocks by warehouse.
+  - Create initial stock.
+  - Update stock quantity.
+  - Write InventoryTransaction for stock adjustment.
+- Warehouses
+  - Create warehouse.
+  - Get warehouse detail.
+  - Get warehouse list/filter.
+  - Update warehouse.
+  - Update warehouse status.
+- Customers
+  - Create customer.
+  - Get customer detail.
+  - Get customer list/filter.
+  - Update customer.
+
+Manual tests passed:
+
+- Create Product -> Create ProductVariant -> Create Stock -> Create Order.
+- Order creation subtracts Stock.Quantity.
+- Order creation writes InventoryTransaction.
+- Insufficient stock case returns expected business error.
+- Cancel order restores stock and writes inventory transaction.
+- Warehouse CRUD/status cases passed.
+- Customer create/detail/list/update cases passed.
+- Customer validation cases passed:
+  - CustomerCode duplicate.
+  - User not found.
+  - User already has Customer.
+  - Invalid gender.
+  - Empty FullName.
+  - Future DateOfBirth.
+
+## Phase 1 Completion
+
+```text
+Status: Completed
+```
+
+Phase 1 core sales flow is now implemented and manually tested:
+
+```text
+Product
+-> ProductVariant
+-> Warehouse
+-> Stock
+-> Customer
+-> Order
+-> OrderDetail
+-> Payment
+-> InventoryTransaction
+```
+
+Customer endpoints implemented:
+
+```http
+POST  /api/customers
+GET   /api/customers/{customerId}
+GET   /api/customers?keyword=nguyen&pageNumber=1&pageSize=10
+PATCH /api/customers/{customerId}
+```
+
+Phase 1 Customer scope:
+
+- Keep Customer simple.
+- Do not implement authentication yet.
+- Do not implement full User management yet unless needed.
+- Customer create uses an existing UserId.
+- Customer update should update customer profile fields only.
+
+Important Customer/User note:
+
+```text
+User = login/account identity.
+Customer = buyer profile used by orders.
+```
+
+For Phase 1, Customer is mainly needed so Order can reference a real `customerId`.
+
+## Phase 1 Final Notes
+
+What is intentionally not included in Phase 1:
+
+- Authentication/register/login.
+- Full User management.
+- Brands/categories/images.
+- Shipment/return/refund.
+- Promotions/coupons.
+- Supplier/purchase order.
+- Full ecommerce checkout flow.
+- Reserved stock workflow.
+- Automated tests.
+
+Recommended next steps after Phase 1:
+
+1. Clean up naming/typos and unused helpers.
+2. Standardize response messages and exception codes.
+3. Add automated tests for OrderService and stock edge cases.
+4. Start Phase 2 with authentication/register or frontend React integration.
