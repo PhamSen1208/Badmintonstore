@@ -4,6 +4,8 @@ using BadmintonStores.Api.Responses.Auth;
 using BadmintonStores.Application.DTOs.Auth;
 using BadmintonStores.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BadmintonStores.Api.Controllers;
 
@@ -70,5 +72,30 @@ public class AuthController : ControllerBase
 
         var response = MapToAuthResponse(result);
         return Ok(ApiResponse<AuthResponse>.Ok(response, "Đăng nhập thành công"));
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<ApiResponse<CurrentUserResponse>>> GetMe(CancellationToken cancellationToken)
+    {
+        //Lấy userId từ claim trong JWT
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _authService.GetCurrentUserAsync(userId, cancellationToken);
+        var response = new CurrentUserResponse
+        {
+            UserId = result.UserId,
+            CustomerId = result.CustomerId,
+            Email = result.Email,
+            Phone = result.Phone,
+            Role = result.Role,
+            Status = result.Status,
+            FullName = result.FullName
+        };
+        return Ok(ApiResponse<CurrentUserResponse>.Ok(response,"Lấy thông tin người dùng thành công "));
     }
 }

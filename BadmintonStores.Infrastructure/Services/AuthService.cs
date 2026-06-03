@@ -118,6 +118,33 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task<CurrentUserResult> GetCurrentUserAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        if(userId <= 0)
+        {
+            throw new ValidationException("INVALID_USER_ID", "User ID không hợp lệ");
+        }
+
+        var user = await _dbContext.Users.Include(u => u.Customer)
+            .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        
+        if(user == null)
+        {
+            throw new ValidationException("USER_NOT_FOUND", "Không tìm thấy người dùng");
+        }
+
+        return new CurrentUserResult
+        {
+            UserId = user.Id,
+            CustomerId = user.Customer?.Id,
+            Email = user.Email,
+            Phone = user.Phone,
+            Role = user.Role.ToString().ToLowerInvariant(),
+            Status = user.Status.ToString().ToLowerInvariant(),
+            FullName = user.Customer?.FullName
+        };
+    }
+
     private static void ValidatePassword(string password)
     {
         if(string.IsNullOrWhiteSpace(password))
