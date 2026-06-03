@@ -36,7 +36,7 @@ public class ProductVariantService : IProductVariantService
         var variant = new ProductVariant
         {
             ProductId = request.ProductId,
-            SKU = request.SKU,
+            SKU = sku,
             Price = request.Price,
             SalePrice = request.SalePrice,
             Color = request.Color,
@@ -67,7 +67,7 @@ public class ProductVariantService : IProductVariantService
     {
         if(productVariantId <= 0)
         {
-            throw new NotFoundException("NOT_FOUND_PRODUCT_VARIANT", "Mã thuộc tính không hợp lệ");
+            throw new ValidationException("INVALID_PRODUCT_VARIANT_ID", "Mã thuộc tính không hợp lệ");
         }
 
         var variant = await _dbContext.ProductVariants  
@@ -101,12 +101,12 @@ public class ProductVariantService : IProductVariantService
     {
         if(request.ProductId <= 0)
         {
-            throw new NotFoundException("PRODUCT_ID_NOT_FOUND", "Không tìm thấy sản phẩm");
+            throw new ValidationException("INVALID_PRODUCT_ID", "Mã sản phẩm không hợp lệ");
         }
 
         //Tìm product cha, lấy thông tin cần của product để trả về response
         var product = await _dbContext.Products
-            .Where(p => p.Id == request.ProductId)
+            .Where(p => p.Id == request.ProductId) 
             .Select(p => new
             {
                 p.Id,
@@ -254,7 +254,7 @@ public class ProductVariantService : IProductVariantService
         }
         if(string.IsNullOrWhiteSpace(request.SKU))
         {
-            throw new ValidationException("SKU_REQUIRE", "Mã SKU là bắt buộc");
+            throw new ValidationException("SKU_REQUIRED", "Mã SKU là bắt buộc");
         }
         if(request.SalePrice.HasValue && request.SalePrice <= 0)
         {
@@ -266,7 +266,7 @@ public class ProductVariantService : IProductVariantService
         }
         if(request.Weight.HasValue && request.Weight <= 0)
         {
-            throw new ValidationException("INVALID_WEIGTH", "Cân nặng phải lớn hơn 0");
+            throw new ValidationException("INVALID_WEIGHT", "Cân nặng phải lớn hơn 0");
         }
     }
 

@@ -43,7 +43,7 @@ public class ExceptionHandlingMiddleware
         {
             await WriteErrorResponseAsync(
                 context,
-                HttpStatusCode.BadRequest,
+                HttpStatusCode.Conflict,
                 ex.Code,
                 ex.Message,
                 ex.Details);

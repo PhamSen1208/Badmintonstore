@@ -5,7 +5,6 @@ using BadmintonStores.Domain.Entities;
 using BadmintonStores.Domain.Enums;
 using BadmintonStores.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
 
 namespace BadmintonStores.Infrastructure.Services;
 
@@ -104,7 +103,7 @@ public class WarehouseService : IWarehouseService
         var totalItems = await query.CountAsync(cancellationToken);
         var totalPages = (int)Math.Ceiling(totalItems/(double)pageSize);
 
-        var items = await _dbContext.Warehouses
+        var items = await query
             .OrderByDescending(w => w.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
@@ -140,7 +139,7 @@ public class WarehouseService : IWarehouseService
             throw new ValidationException("WAREHOUSE_NAME_REQUIRED", "Tên kho hàng là bắt buộc");
         }
 
-        var warehouse = await _dbContext.Warehouses.FirstOrDefaultAsync(w => w.Id == request.WarehouseId);
+        var warehouse = await _dbContext.Warehouses.FirstOrDefaultAsync(w => w.Id == request.WarehouseId, cancellationToken);
 
         if(warehouse == null)
         {
@@ -172,7 +171,7 @@ public class WarehouseService : IWarehouseService
             throw new ValidationException("INVALID_WAREHOUSE_ID", "WarehouseId không hợp lệ");
         }
 
-        var warehouse = await _dbContext.Warehouses.FirstOrDefaultAsync(w => w.Id == request.WarehouseId);
+        var warehouse = await _dbContext.Warehouses.FirstOrDefaultAsync(w => w.Id == request.WarehouseId, cancellationToken );
 
         if(warehouse == null)
         {
@@ -207,7 +206,7 @@ public class WarehouseService : IWarehouseService
         }
         if (request.WarehouseName.Length > 255)
         {
-            throw new ValidationException("PRODUCT_NAME_TOO_LONG", "Tên kho hàng quá dài");
+            throw new ValidationException("WAREHOUSE_NAME_TOO_LONG", "Tên kho hàng quá dài");
         }
     }
 

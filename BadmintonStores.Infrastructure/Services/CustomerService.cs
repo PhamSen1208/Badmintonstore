@@ -208,7 +208,7 @@ public class CustomerService : ICustomerService
         }
     }
 
-        private static Gender ParseRecordGender(string gender)
+    private static Gender ParseRecordGender(string gender)
     {
         return gender.Trim().ToLowerInvariant() switch
         {
