@@ -4,9 +4,12 @@ using BadmintonStores.Application.DTOs.Customers;
 using BadmintonStores.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using BadmintonStores.Api.Responses;
+using BadmintonStores.Application.Common.Security;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BadmintonStores.Api.Controllers;
 
+[Authorize(Roles = RoleNames.AdminOrStaff)]
 [ApiController]
 [Route("api/[controller]")]
 

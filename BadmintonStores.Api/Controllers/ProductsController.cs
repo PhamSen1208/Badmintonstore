@@ -4,6 +4,8 @@ using BadmintonStores.Api.Responses.Products;
 using BadmintonStores.Application.DTOs.Products;
 using BadmintonStores.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using BadmintonStores.Application.Common.Security;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BadmintonStores.Api.Controllers;
 
@@ -19,6 +21,7 @@ public class ProductsController : ControllerBase
         _productService = productService;
     } 
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpPost]
     public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequest request, CancellationToken cancellationToken)
     {
@@ -65,6 +68,7 @@ public class ProductsController : ControllerBase
         return Ok(ApiResponse<GetProductDetailResponse>.Ok(response, "Lấy thông tin sản phẩm thành công."));
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpPatch("{productId:int}")]
     public async Task<IActionResult> UpdateProduct([FromRoute]int productId, [FromBody] UpdateProductRequest request, CancellationToken cancellationToken)
     {
@@ -93,6 +97,7 @@ public class ProductsController : ControllerBase
         return Ok(ApiResponse<UpdateProductResponse>.Ok(response, "Cập nhật sản phẩm thành công"));
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpPatch("{productId:int}/status")]
     public async Task<IActionResult> UpdateProductStatus(int productId, [FromBody] UpdateProductStatusDto request, CancellationToken cancellationToken)
     {

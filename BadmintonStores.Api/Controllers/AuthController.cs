@@ -21,7 +21,8 @@ public class AuthController : ControllerBase
         _authService = authService;
     }
 
-    [HttpPost("register")]  
+    [AllowAnonymous]
+    [HttpPost("register")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Register(RegisterRequest request, CancellationToken cancellationToken)
     {
         var dto = new RegisterDto
@@ -34,10 +35,11 @@ public class AuthController : ControllerBase
             Gender = request.Gender
         };
 
-        var result = await _authService.RegisterAsync(dto, cancellationToken);
-
+        var result = await _authService.RegisterAsync(dto, GetIpAddress(), cancellationToken);
         var response = MapToAuthResponse(result);
-        return Ok(ApiResponse<AuthResponse>.Ok(response,"Đăng ký thành công"));
+        SetRefreshTokenCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
+
+        return Ok(ApiResponse<AuthResponse>.Ok(response, "Đăng ký thành công"));
     }
 
     private static AuthResponse MapToAuthResponse(AuthResult result)
@@ -59,6 +61,7 @@ public class AuthController : ControllerBase
         };
     }
 
+    [AllowAnonymous]
     [HttpPost("login")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Login(LoginRequest request, CancellationToken cancellationToken)
     {
@@ -68,10 +71,38 @@ public class AuthController : ControllerBase
             Password = request.Password
         };
 
-        var result = await _authService.LoginAsync(dto, cancellationToken);
-
+        var result = await _authService.LoginAsync(dto, GetIpAddress(), cancellationToken);
         var response = MapToAuthResponse(result);
+        SetRefreshTokenCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
+
         return Ok(ApiResponse<AuthResponse>.Ok(response, "Đăng nhập thành công"));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> RefreshToken(CancellationToken cancellationToken)
+    {
+        var refreshToken = Request.Cookies["refreshToken"];
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return Unauthorized();
+        }
+
+        var result = await _authService.RefreshTokenAsync(refreshToken, GetIpAddress(), cancellationToken);
+        SetRefreshTokenCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
+        var response = MapToAuthResponse(result);
+
+        return Ok(ApiResponse<AuthResponse>.Ok(response, "Refresh token thành công"));
+    }
+
+    [AllowAnonymous]
+    [HttpPost("logout")]
+    public async Task<ActionResult<ApiResponse<object>>> Logout(CancellationToken cancellationToken)
+    {
+        var refreshToken = Request.Cookies["refreshToken"];
+        await _authService.LogoutAsync(refreshToken, GetIpAddress(), cancellationToken);
+        DeleteRefreshTokenCookie();
+        return Ok(ApiResponse<object>.Ok(new { }, "Đăng xuất thành công"));
     }
 
     [Authorize]
@@ -96,6 +127,40 @@ public class AuthController : ControllerBase
             Status = result.Status,
             FullName = result.FullName
         };
-        return Ok(ApiResponse<CurrentUserResponse>.Ok(response,"Lấy thông tin người dùng thành công "));
+        return Ok(ApiResponse<CurrentUserResponse>.Ok(response, "Lấy thông tin người dùng thành công "));
+    }
+
+    //Helper methods
+    private string? GetIpAddress()
+    {
+        return HttpContext.Connection.RemoteIpAddress?.ToString();
+    }
+
+    private void SetRefreshTokenCookie(string refreshToken, DateTime expiresAt)
+    {
+        Response.Cookies.Append(
+            "refreshToken",
+            refreshToken,
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false,
+                SameSite = SameSiteMode.Lax,
+                Expires = expiresAt.ToUniversalTime()
+            }
+        );
+    }
+
+    private void DeleteRefreshTokenCookie()
+    {
+        Response.Cookies.Delete(
+            "refreshToken",
+            new CookieOptions
+            {
+                HttpOnly = true,
+                Secure = false,
+                SameSite = SameSiteMode.Lax,
+            }
+        );
     }
 }

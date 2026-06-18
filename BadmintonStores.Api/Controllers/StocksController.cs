@@ -4,9 +4,12 @@ using BadmintonStores.Api.Responses.Stocks;
 using BadmintonStores.Application.DTOs.Stocks;
 using BadmintonStores.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using BadmintonStores.Application.Common.Security;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BadmintonStores.Api.Controllers;
 
+[Authorize(Roles = RoleNames.AdminOrStaff)]
 [ApiController]
 [Route("api")]
 public class StocksController : ControllerBase

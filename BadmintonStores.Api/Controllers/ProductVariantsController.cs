@@ -5,6 +5,8 @@ using BadmintonStores.Application.DTOs.ProductVariants;
 using BadmintonStores.Application.Interfaces;
 using BadmintonStores.Domain.Entities;
 using Microsoft.AspNetCore.Mvc;
+using BadmintonStores.Application.Common.Security;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BadmintonStores.Api.Controllers;
 
@@ -18,6 +20,7 @@ public class ProductVariantsController : ControllerBase
         _productVariantService = service;
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpPost("products/{productId:int}/variants")]
     public async Task<IActionResult> CreateProductVariant([FromRoute] int productId, [FromBody] CreateProductVariantRequest request, CancellationToken cancellationToken)
     {
@@ -49,8 +52,8 @@ public class ProductVariantsController : ControllerBase
         };
         return Ok(ApiResponse<CreateProductVariantResponse>.Ok(response, "Thêm mới thuộc tính sản phẩm thành công"));
     }
-
-    [HttpGet("product-variants/{productVariantId:int}")]   
+ 
+    [HttpGet("product-variants/{productVariantId:int}")]
     public async Task<IActionResult> GetProductVariantDetail(int productVariantId, CancellationToken cancellationToken)
     {
         var result = await _productVariantService.GetProductVariantByIdAsync(productVariantId, cancellationToken);
@@ -111,6 +114,7 @@ public class ProductVariantsController : ControllerBase
         return Ok(ApiResponse<GetProductVariantResponse>.Ok(response, "Lấy danh sách thuộc tính thành công"));
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpPatch("product-variants/{productVariantId:int}")]
     public async Task<IActionResult> UpdateProductVariant([FromRoute] int productVariantId, [FromBody] UpdateProductVariantRequest request, CancellationToken cancellationToken)
     {
@@ -145,6 +149,7 @@ public class ProductVariantsController : ControllerBase
         return Ok(ApiResponse<UpdateProductVariantResponse>.Ok(response,"Cập nhật thuộc tính sản phẩm thành công"));
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)] 
     [HttpPatch("product-variants/{productVariantId:int}/status")]
     public async Task<IActionResult> UpdateProductVariantStatus([FromRoute] int productVariantId, [FromBody] UpdateProductVariantStatusRequest request, CancellationToken cancellationToken)
     {

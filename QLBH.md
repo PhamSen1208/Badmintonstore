@@ -994,3 +994,802 @@ Recommended next steps after Phase 1:
 2. Standardize response messages and exception codes.
 3. Add automated tests for OrderService and stock edge cases.
 4. Start Phase 2 with authentication/register or frontend React integration.
+
+## Phase 2 - Auth Basic Progress
+
+Status:
+
+```text
+Auth basic: Completed
+Authorization basic: In progress / first pass completed
+```
+
+Goal:
+
+Add authentication and authorization on top of Phase 1 backend.
+
+Current auth approach:
+
+- Custom auth using existing `Users` table.
+- Password is hashed before saving to database.
+- JWT access token is returned after register/login.
+- API uses `[Authorize]` to protect authenticated endpoints.
+- API uses role-based authorization for admin/staff endpoints.
+
+Important concepts:
+
+```text
+Authentication = who are you?
+Authorization = what are you allowed to do?
+```
+
+Current user model:
+
+```text
+User = login/account identity.
+Customer = buyer profile used by orders.
+```
+
+Register flow:
+
+```text
+POST /api/auth/register
+-> RegisterRequest
+-> AuthController maps to RegisterDto
+-> AuthService validates email/password/profile data
+-> AuthService checks email duplicate
+-> AuthService creates User with Role = Customer and Status = Active
+-> PasswordHasherService hashes password
+-> AuthService creates Customer linked to User
+-> SaveChanges
+-> JwtTokenService generates access token
+-> AuthResult
+-> AuthController maps to AuthResponse
+```
+
+Login flow:
+
+```text
+POST /api/auth/login
+-> LoginRequest
+-> AuthController maps to LoginDto
+-> AuthService validates email and password presence
+-> AuthService finds user by normalized email
+-> AuthService checks user status is Active
+-> PasswordHasherService verifies password against PasswordHash
+-> JwtTokenService generates access token
+-> AuthResult
+-> AuthController maps to AuthResponse
+```
+
+Current user flow:
+
+```text
+GET /api/auth/me
+-> client sends Authorization: Bearer <accessToken>
+-> ASP.NET Core validates JWT
+-> AuthController reads UserId from token claim
+-> AuthService loads User + Customer
+-> CurrentUserResult
+-> CurrentUserResponse
+```
+
+Implemented auth endpoints:
+
+```http
+POST /api/auth/register
+POST /api/auth/login
+GET  /api/auth/me
+```
+
+Auth endpoint access:
+
+```text
+POST /api/auth/register -> AllowAnonymous
+POST /api/auth/login    -> AllowAnonymous
+GET  /api/auth/me       -> Authorize
+```
+
+JWT configuration:
+
+- `JwtSettings` stores Issuer, Audience, SecretKey, AccessTokenMinutes.
+- `Program.cs` configures JWT Bearer authentication.
+- `UseAuthentication()` must run before `UseAuthorization()`.
+- JWT contains user id, email, and role claims.
+
+Password rules:
+
+- Required.
+- At least 8 characters.
+- Must contain lowercase letter.
+- Must contain uppercase letter.
+- Must contain digit.
+- Must contain special character.
+
+Login password validation note:
+
+```text
+Register validates password strength.
+Login only checks password is present, then verifies it against PasswordHash.
+```
+
+Reason:
+
+Login checks an existing password. Password strength policy should be applied when creating or changing a password, not when logging in.
+
+Role constants:
+
+File:
+
+```text
+BadmintonStores.Application/Common/Security/RoleNames.cs
+```
+
+Roles:
+
+```text
+Admin
+Staff
+Customer
+```
+
+Common role groups:
+
+```text
+AdminOrStaff
+AdminOrStaffOrCustomer
+```
+
+Role claim note:
+
+JWT currently uses:
+
+```csharp
+user.Role.ToString()
+```
+
+So role names in `[Authorize(Roles = "...")]` must use:
+
+```text
+Admin
+Staff
+Customer
+```
+
+not lowercase values.
+
+## Phase 2 - Authorization First Pass
+
+Current authorization rule:
+
+```text
+Admin/Staff = internal system management.
+Customer = authenticated buyer, currently only /api/auth/me is enabled.
+```
+
+Controller authorization plan applied:
+
+```text
+AuthController
+- register: AllowAnonymous
+- login: AllowAnonymous
+- me: Authorize
+
+WarehousesController
+- all endpoints: Admin/Staff
+
+StocksController
+- all endpoints: Admin/Staff
+
+CustomersController
+- all endpoints: Admin/Staff
+
+ProductsController
+- GET list/detail: public
+- POST/PATCH/status: Admin/Staff
+
+ProductVariantsController
+- GET list/detail/list by product: public
+- POST/PATCH/status: Admin/Staff
+
+OrdersController
+- all endpoints: Admin/Staff for now
+```
+
+Important order authorization note:
+
+Do not open `POST /api/orders` to Customer yet.
+
+Reason:
+
+Current create order request still accepts `customerId` from client. If a Customer can call it, they could send another customer's id.
+
+Safer future design:
+
+```text
+Customer creates order:
+-> backend reads UserId from JWT
+-> backend finds Customer by UserId
+-> backend uses that CustomerId
+```
+
+Admin/Staff can still create order for a selected customer.
+
+## Phase 2 Manual Test Status
+
+Auth tests passed:
+
+- Register success.
+- Register duplicate email.
+- Register weak password.
+- Register invalid email.
+- Register invalid gender.
+- Login success.
+- Login wrong password.
+- Login missing/invalid email.
+- Login non-existing email returns generic INVALID_EMAIL_OR_PASSWORD.
+- GET /api/auth/me without token returns 401.
+- GET /api/auth/me with invalid token returns 401.
+- GET /api/auth/me with valid token returns current user.
+
+Authorization tests passed:
+
+- Public product GET endpoints work without token.
+- Protected endpoints without token return 401.
+- Protected Admin/Staff endpoints with Customer token return 403.
+- Protected Admin/Staff endpoints with Admin/Staff token return 200.
+
+Testing reminder:
+
+```text
+After changing User.Role in database, login again.
+```
+
+Reason:
+
+Role is stored inside JWT at login time. Old tokens do not automatically update when database role changes.
+
+## Phase 2 - Refresh Token And Logout
+
+Status:
+
+```text
+Completed
+```
+
+Purpose:
+
+- Access token should be short-lived.
+- Refresh token lets the client get a new access token without logging in again.
+- Logout should revoke refresh token.
+
+Recommended design:
+
+```text
+Access token:
+- JWT
+- short-lived
+- returned in response body
+
+Refresh token:
+- random secure string
+- store only hash in database
+- send to browser as HttpOnly cookie
+- can be revoked on logout
+```
+
+Implemented table:
+
+```text
+RefreshTokens
+```
+
+Fields:
+
+- Id
+- UserId
+- TokenHash
+- ExpiresAt
+- RevokedAt
+- CreatedAt
+- CreatedByIp
+- RevokedByIp
+- ReplacedByTokenHash
+
+Implemented endpoints:
+
+```http
+POST /api/auth/refresh
+POST /api/auth/logout
+```
+
+Current full auth endpoints:
+
+```http
+POST /api/auth/register
+POST /api/auth/login
+POST /api/auth/refresh
+POST /api/auth/logout
+GET  /api/auth/me
+```
+
+Refresh token implementation files:
+
+```text
+BadmintonStores.Domain/Entities/RefreshToken.cs
+BadmintonStores.Infrastructure/Configurations/RefreshTokenConfiguration.cs
+BadmintonStores.Application/Interfaces/IRefreshTokenService.cs
+BadmintonStores.Infrastructure/Services/RefreshTokenService.cs
+```
+
+Refresh token DTOs:
+
+```text
+RefreshTokenResult
+RefreshTokenRotationResult
+```
+
+Refresh token service responsibilities:
+
+```text
+CreateRefreshTokenAsync
+-> generate secure random token
+-> hash token using SHA256
+-> store TokenHash in database
+-> return raw token to controller so it can be set as cookie
+
+RotateRefreshTokenAsync
+-> read refresh token from cookie
+-> hash it
+-> find token record by TokenHash
+-> check token exists, not revoked, not expired
+-> check user is active
+-> revoke old token
+-> create replacement token
+-> return user + new raw refresh token
+
+RevokeRefreshTokenAsync
+-> hash refresh token
+-> find token record
+-> set RevokedAt and RevokedByIp
+```
+
+Register/login refresh-token flow:
+
+```text
+POST /api/auth/register or POST /api/auth/login
+-> AuthService creates access token
+-> AuthService creates refresh token record
+-> AuthController sets refreshToken HttpOnly cookie
+-> response body returns accessToken only
+```
+
+Refresh flow:
+
+```text
+POST /api/auth/refresh
+-> AuthController reads refreshToken cookie
+-> AuthService calls RefreshTokenService.RotateRefreshTokenAsync
+-> old refresh token is revoked
+-> new refresh token is stored
+-> new refresh token is set to cookie
+-> new accessToken is returned in response body
+```
+
+Logout flow:
+
+```text
+POST /api/auth/logout
+-> AuthController reads refreshToken cookie
+-> AuthService calls RefreshTokenService.RevokeRefreshTokenAsync
+-> refresh token is revoked in database
+-> AuthController deletes refreshToken cookie
+```
+
+Important behavior:
+
+```text
+Logout does not immediately kill an already-issued access token.
+```
+
+Reason:
+
+JWT access tokens are stateless. The current access token can still work until it expires. Logout revokes the refresh token so the client cannot get a new access token.
+
+Cookie configuration for local development:
+
+```csharp
+HttpOnly = true
+Secure = false
+SameSite = SameSiteMode.Lax
+```
+
+Production note:
+
+```text
+Use HTTPS and set Secure = true.
+```
+
+Migration note:
+
+Initial refresh token migration accidentally created `InvokedAt`. A follow-up migration renamed it to `RevokedAt`.
+
+Correct meaning:
+
+```text
+RevokedAt = when the refresh token was revoked due to logout or token rotation.
+```
+
+Manual refresh/logout tests:
+
+- Login creates refreshToken cookie.
+- Login/Register response body does not expose refreshToken.
+- Database stores TokenHash, not the raw refresh token.
+- POST /api/auth/refresh returns a new accessToken.
+- Refresh rotates token:
+  - old token has RevokedAt != NULL
+  - old token has ReplacedByTokenHash != NULL
+  - new token has RevokedAt = NULL
+- POST /api/auth/logout revokes current refresh token.
+- Logout deletes refreshToken cookie.
+- Refresh after logout fails because cookie is gone or token is revoked.
+
+## Frontend Planning Notes
+
+Recommended frontend direction:
+
+```text
+Build the UI yourself in React first.
+Use Figma/Stitch only for layout inspiration, not as the source of truth.
+```
+
+Reason:
+
+The main learning goal is understanding the end-to-end flow:
+
+```text
+React UI
+-> API client
+-> ASP.NET Core endpoint
+-> Service
+-> EF Core
+-> SQL Server
+```
+
+Frontend scope should start small:
+
+```text
+1. Login page
+2. Register page
+3. Admin layout
+4. Product list
+5. Product create/update form
+6. Warehouse/stock screens
+7. Order create screen
+8. Order list/detail screen
+```
+
+Recommended first frontend milestone:
+
+```text
+Login/Register + Auth state + /api/auth/me
+```
+
+Frontend auth behavior:
+
+```text
+Login/Register response returns accessToken.
+Refresh token is stored automatically by browser cookie.
+React should not read refreshToken.
+React stores accessToken in memory first.
+When accessToken expires, call POST /api/auth/refresh.
+Logout calls POST /api/auth/logout and clears accessToken in React.
+```
+
+Recommended frontend API client:
+
+```text
+Use axios or fetch wrapper.
+Always centralize API calls in one client module.
+Enable credentials/cookies when calling refresh/logout.
+```
+
+If using axios:
+
+```text
+withCredentials: true
+```
+
+Initial UI style recommendation:
+
+```text
+Admin dashboard style.
+Quiet, practical, data-focused.
+Avoid landing-page style.
+Use tables, filters, forms, drawers/modals where needed.
+```
+
+## Frontend Auth UI Direction
+
+Important product direction:
+
+```text
+BadmintonStores is both a customer-facing store and an internal management system.
+```
+
+So the authentication UI should not sound like it is only for store managers.
+
+Avoid overly admin-only copy:
+
+```text
+He thong quan ly
+Quan ly ban hang, don hang va ton kho
+Tiep tuc quan ly cua hang
+```
+
+Reason:
+
+- Customer users want to shop, track orders, and manage their own account.
+- Staff/Admin users want to manage products, stock, customers, and orders.
+- Login/Register is a shared entry point, so the tone should fit both groups.
+
+Recommended auth page positioning:
+
+```text
+BadmintonStores
+Trang bi tot hon cho tung tran dau.
+```
+
+Suggested hero title:
+
+```text
+San sang cho tran dau tiep theo
+```
+
+Suggested hero subtitle:
+
+```text
+Kham pha san pham cau long, dat hang nhanh va theo doi moi don mua trong mot noi.
+```
+
+Suggested login description:
+
+```text
+Tiep tuc mua sam, theo doi don hang hoac quan ly cua hang cua ban.
+```
+
+Suggested register description:
+
+```text
+Tao tai khoan de mua hang, luu thong tin va theo doi don hang de dang hon.
+```
+
+Future role-based redirect idea:
+
+```text
+Customer login -> storefront / account area
+Staff/Admin login -> admin dashboard
+```
+
+Frontend information architecture should eventually split into two surfaces:
+
+```text
+Public storefront:
+- View products
+- Register/Login
+- Create order
+- My orders
+- My profile
+
+Admin dashboard:
+- Manage products
+- Manage product variants
+- Manage warehouses
+- Manage stocks
+- Manage customers
+- Manage orders
+```
+
+Future optional endpoints:
+
+```http
+POST /api/auth/change-password
+POST /api/auth/forgot-password
+POST /api/auth/reset-password
+```
+
+## Frontend Auth Implementation Progress
+
+Status:
+
+```text
+React auth UI: In progress
+Login/Register pages: implemented visually
+Auth API integration: started
+```
+
+Frontend stack:
+
+```text
+React
+TypeScript
+Tailwind CSS
+shadcn/ui
+react-hook-form
+Zod
+axios
+react-router-dom
+```
+
+Current frontend project:
+
+```text
+BadmintonStores.Web
+```
+
+Current auth UI files:
+
+```text
+src/features/auth/components/AuthShell.tsx
+src/features/auth/components/PasswordInput.tsx
+src/features/auth/pages/LoginPage.tsx
+src/features/auth/pages/RegisterPage.tsx
+src/features/auth/schemas/auth.schema.ts
+src/features/auth/services/auth.service.ts
+src/features/auth/types/auth.types.ts
+src/components/ui/form.tsx
+```
+
+Current auth UI behavior:
+
+- Login page has email/password form.
+- Register page has full name/email/phone/password/confirm password form.
+- Password input supports show/hide password.
+- Forms use `react-hook-form`.
+- Validation uses `zodResolver`.
+- Fake API error handling was added first for learning.
+- UI uses shadcn components such as Button, Input, Form, Alert, Checkbox.
+- Auth pages use a shared `AuthShell`.
+- AuthShell uses a badminton/sports background image instead of a plain gradient.
+
+Frontend auth validation rules:
+
+```text
+Login:
+- email required and valid
+- password required
+
+Register:
+- fullName required
+- email required and valid
+- password must be strong
+- confirmPassword must match password
+```
+
+Frontend auth architecture planned:
+
+```text
+AuthContext
+-> keeps user/accessToken/auth state
+-> exposes login/register/logout
+-> bootstraps session by calling /api/auth/refresh
+
+api.ts
+-> central axios client
+-> baseURL from VITE_API_BASE_URL
+-> withCredentials: true for refresh token cookie
+-> setAccessToken sets Authorization Bearer header
+
+ProtectedRoute
+-> blocks routes that require authentication
+
+DashboardPage temporary
+-> used to test login/logout/me before building real storefront/admin layout
+```
+
+Important FE auth idea:
+
+```text
+AuthContext is enough for current auth state.
+Redux is not required yet.
+```
+
+Reason:
+
+Auth state is small:
+
+```text
+user
+accessToken
+isAuthenticated
+isBootstrapping
+login/register/logout functions
+```
+
+Future data fetching for products/orders/stocks can later use simple services first, then TanStack Query if caching/refetching becomes important.
+
+## Frontend Env Bug Learned
+
+Bug:
+
+Request was sent to:
+
+```text
+http://localhost:5173/import.meta.env.VITE_API_BASE_URL/api/auth/register
+```
+
+Cause:
+
+`api.ts` used a string literal:
+
+```ts
+baseURL: "import.meta.env.VITE_API_BASE_URL"
+```
+
+This makes JavaScript treat it as normal text.
+
+Correct code:
+
+```ts
+baseURL: import.meta.env.VITE_API_BASE_URL
+```
+
+Current `.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:5006
+```
+
+After changing `.env`, restart Vite:
+
+```powershell
+npm.cmd run dev
+```
+
+Endpoint formatting note:
+
+Prefer leading slash in API service:
+
+```ts
+"/api/auth/login"
+"/api/auth/register"
+"/api/auth/refresh"
+"/api/auth/logout"
+```
+
+Expected request after fix:
+
+```text
+http://localhost:5006/api/auth/register
+```
+
+## Next Review Session Plan
+
+Next learning review should walk the full auth flow end-to-end:
+
+```text
+1. User opens /login
+2. LoginPage renders form
+3. react-hook-form controls input state
+4. Zod validates form data
+5. Submit calls useAuth().login()
+6. AuthContext calls auth.service.login()
+7. auth.service uses axios api client
+8. Backend AuthController receives request
+9. Backend AuthService validates user/password
+10. Backend returns accessToken + user and sets refreshToken cookie
+11. AuthContext stores user/accessToken
+12. api.ts sets Authorization Bearer header
+13. Router redirects to /dashboard
+14. ProtectedRoute allows authenticated user
+15. Reload page triggers AuthProvider bootstrap
+16. Bootstrap calls /api/auth/refresh
+17. Logout calls /api/auth/logout
+18. AuthContext clears auth state and redirects to /login
+```
+
+Goal of that review:
+
+```text
+Make backend auth and frontend auth feel like one continuous flow instead of many disconnected files.
+```

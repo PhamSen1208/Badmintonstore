@@ -5,9 +5,12 @@ using BadmintonStores.Application.DTOs.Warehouses;
 using BadmintonStores.Application.Interfaces;
 using BadmintonStores.Infrastructure.Services;
 using Microsoft.AspNetCore.Mvc;
+using BadmintonStores.Application.Common.Security;
+using Microsoft.AspNetCore.Authorization;
 
 namespace BadmintonStores.Api.Controllers;
 
+[Authorize(Roles = RoleNames.AdminOrStaff)]
 [ApiController]
 [Route("api/[controller]")]
 public class WarehousesController : ControllerBase

@@ -26,3 +26,10 @@ appsettings.Development.json
 
 # Recovered temporary files
 recovered_from_dll/
+
+# Node/Frontend
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env

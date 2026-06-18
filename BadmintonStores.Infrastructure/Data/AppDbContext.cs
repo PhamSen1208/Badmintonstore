@@ -20,6 +20,7 @@ public class AppDbContext  : DbContext
     public DbSet<OrderDetail> OrderDetails => Set<OrderDetail>();
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<InventoryTransaction> InventoryTransactions => Set<InventoryTransaction>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
