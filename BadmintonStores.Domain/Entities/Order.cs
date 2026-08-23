@@ -12,13 +12,19 @@ public class Order
 
     public DateTime OrderDate { get; set; }
 
-    public OrderStatus Status { get; set; } = OrderStatus.Confirmed;
+    public OrderStatus Status { get; set; } = OrderStatus.Confirmed; 
     public PaymentStatus PaymentStatus { get; set; } = PaymentStatus.Unpaid;
 
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }
+    public decimal ShippingFee { get; set; }
+    public decimal TaxRate { get; set; }
+    public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
 
+    public string? RecipientName { get; set; }
+    public string? ShippingPhone { get; set; }
+    public string? ShippingAddress { get; set; }
     public string? Note { get; set; }
 
     public DateTime CreatedAt { get; set; }

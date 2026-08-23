@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { AuthShell } from "../components/AuthShell"
 import { PasswordInput } from "../components/PasswordInput"
 import { loginSchema, type LoginFormValues } from "../schemas/auth.schema"
+import { getDefaultRouteByRole } from "@/features/auth/utils/auth-redirect";
 
 export function LoginPage() {
     const [serverError, setServerError] = useState<string | null>(null)
@@ -41,11 +42,11 @@ export function LoginPage() {
         setServerError(null)
 
         try {
-            await login({
+            const response = await login({ 
                 email: values.email,
                 password: values.password,
             })
-            navigate("/dashboard", {replace: true})
+            navigate(getDefaultRouteByRole(response.user.role))
         }
         catch 
         {

@@ -17,6 +17,10 @@ public class GetProductsItemResponse
     public string ProductCode {get; set;} = string.Empty;
     public decimal BasePrice {get; set;} 
     public string Status {get; set;} = string.Empty;
+    public int? CategoryId {get; set;}
+    public string? CategoryName {get; set;}
+    public int? BrandId {get; set;}
+    public string? BrandName {get; set;}
     public DateTime CreatedAt {get; set;}
     public DateTime UpdatedAt {get; set;}
 }

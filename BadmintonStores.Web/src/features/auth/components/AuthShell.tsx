@@ -1,5 +1,5 @@
-import loginBackground from "../../../assets/login_register.png"
-import logo from "../../../assets/logo.png"
+import loginBackground from "@/assets/login_register.png";
+import logo from "@/assets/logo.png";
 
 type AuthShellProps = {
     title: string
@@ -57,7 +57,7 @@ export function AuthShell({ title, description, children }: AuthShellProps) {
 
                 {/* ── Form (Right) ── */}
                 <section className="flex items-center justify-center bg-neutral-50/50 px-6 py-12 sm:px-10 lg:bg-neutral-50">
-                    <div className="w-full max-w-[490px]">
+                    <div className="w-full max-w">
                         {/* Mobile logo */}
                         <div className="mb-10 lg:hidden">
                             <div className="flex items-center gap-2">

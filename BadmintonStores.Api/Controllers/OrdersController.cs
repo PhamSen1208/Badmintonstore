@@ -30,6 +30,11 @@ public class OrdersController : ControllerBase
         {
             CustomerId = request.CustomerId,
             WarehouseId = request.WarehouseId,
+            RecipientName = request.RecipientName,
+            ShippingPhone = request.ShippingPhone,
+            ShippingAddress = request.ShippingAddress,
+            ShippingFee = request.ShippingFee,
+            TaxRate = request.TaxRate,
             Note = request.Note,
             Items = request.Items.Select(i => new CreateOrderItemDto
             {
@@ -83,9 +88,17 @@ public class OrdersController : ControllerBase
             OrderCode = result.OrderCode,
             Status = result.Status,
             PaymentStatus = result.PaymentStatus,
-            Subtotal = result.Subtotal,
+            CustomerId = result.CustomerId,
+            CustomerName = result.CustomerName,
+            RecipientName = result.RecipientName,
+            ShippingPhone = result.ShippingPhone,
+            ShippingAddress = result.ShippingAddress,
             Note = result.Note,
+            Subtotal = result.Subtotal,
             DiscountAmount = result.DiscountAmount,
+            ShippingFee = result.ShippingFee,
+            TaxRate = result.TaxRate,
+            TaxAmount = result.TaxAmount,
             TotalAmount = result.TotalAmount,
             Items = result.Items.Select(i => new GetOrderDetailItemResponse
             {

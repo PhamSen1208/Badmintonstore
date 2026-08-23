@@ -23,6 +23,7 @@ import {
     registerSchema,
     type RegisterFormValues,
 } from "../schemas/auth.schema"
+import { getDefaultRouteByRole } from "@/features/auth/utils/auth-redirect";
 
 export function RegisterPage() {
     const [serverError, setServerError] = useState<string | null>(null)
@@ -47,14 +48,14 @@ export function RegisterPage() {
         setServerError(null)
 
         try {
-            await register({
+            const response = await register({
                 email: values.email,
                 phone: values.phone || undefined,
                 password: values.password,
                 fullName: values.fullName,
                 gender: values.gender || "unknown",
             })
-            navigate("/login", {replace: true})
+            navigate(getDefaultRouteByRole(response.user.role))
         } catch  {
             setServerError("Đăng ký thất bại. Vui lòng thử lại") 
         }

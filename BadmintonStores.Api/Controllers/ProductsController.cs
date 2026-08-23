@@ -31,6 +31,8 @@ public class ProductsController : ControllerBase
             ProductCode = request.ProductCode,
             ProductName = request.ProductName,
             BasePrice = request.BasePrice,
+            CategoryId = request.CategoryId,
+            BrandId = request.BrandId,
             Warranty = request.Warranty,
             Description = request.Description
         };
@@ -78,6 +80,8 @@ public class ProductsController : ControllerBase
             ProductId = productId,
             ProductName = request.ProductName,
             BasePrice = request.BasePrice,
+            CategoryId = request.CategoryId,
+            BrandId = request.BrandId,
             Description = request.Description,
             Warranty = request.Warranty
         };
@@ -128,7 +132,9 @@ public class ProductsController : ControllerBase
             Keyword = request.Keyword, 
             PageNumber = request.PageNumber,
             PageSize = request.PageSize,
-            Status = request.Status
+            Status = request.Status,
+            CategoryId = request.CategoryId,
+            BrandId = request.BrandId
         };
 
         var result = await _productService.GetProductsAsync(query,cancellationToken);
@@ -147,6 +153,10 @@ public class ProductsController : ControllerBase
                 ProductName = o.ProductName,
                 BasePrice = o.BasePrice,
                 Status = o.Status,
+                CategoryId = o.CategoryId,
+                CategoryName = o.CategoryName,
+                BrandId = o.BrandId,
+                BrandName = o.BrandName,
                 CreatedAt = o.CreatedAt,
                 UpdatedAt = o.UpdatedAt,
             }).ToList()

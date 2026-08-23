@@ -262,7 +262,7 @@ public class ProductVariantService : IProductVariantService
         }
         if (request.SalePrice.HasValue && request.SalePrice.Value > request.Price)
         {
-            throw new ValidationException("INVALID_SALE_PRICE", "Sale price không được lớn hơn price.");
+            throw new ValidationException("INVALID_SALE_PRICE", "Giá khuyến mãi không được lớn hơn giá bán.");
         }
         if(request.Weight.HasValue && request.Weight <= 0)
         {

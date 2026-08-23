@@ -18,4 +18,5 @@ public class Customer
 
     public User User {get; set;} = null!; // 1 customer chỉ có 1 user
     public ICollection<Order> Orders {get; set;} = new List<Order>(); // 1 customer có thể có nhiều order
+    public ICollection<CustomerAddress> Addresses { get; set; } = new List<CustomerAddress>();
 }

@@ -1,12 +1,12 @@
 export type ApiResponse<T> = {
     success: boolean;
     message: string;
-    data?: T;
+    data: T;
 }
 
 export type AuthUser = {
     userId: number,
-    customerId: number,
+    customerId: number | null,
     email: string,
     phone: string | null
     role: string,

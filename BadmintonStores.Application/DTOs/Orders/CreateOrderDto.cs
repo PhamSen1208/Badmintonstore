@@ -4,6 +4,11 @@ public class CreateOrderDto
 {
     public int CustomerId { get; set; }
     public int WarehouseId { get; set; }
+    public string? RecipientName { get; set; }
+    public string? ShippingPhone { get; set; }
+    public string? ShippingAddress { get; set; }
+    public decimal ShippingFee { get; set; }
+    public decimal TaxRate { get; set; }
     public string? Note { get; set; }
     public List<CreateOrderItemDto> Items { get; set; } = new();
     public CreatePaymentDto? Payment { get; set; }

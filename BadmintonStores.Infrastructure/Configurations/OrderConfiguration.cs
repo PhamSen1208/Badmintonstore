@@ -39,7 +39,25 @@ public class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.DiscountAmount)
             .HasPrecision(18, 2)
             .IsRequired();  
-        
+
+        builder.Property(o => o.ShippingFee)
+            .HasPrecision(18, 2);
+
+        builder.Property(o => o.TaxRate)
+            .HasPrecision(5, 4);
+
+        builder.Property(o => o.TaxAmount)
+            .HasPrecision(18, 2);
+
+        builder.Property(o => o.RecipientName)
+            .HasMaxLength(100);
+
+        builder.Property(o => o.ShippingPhone)
+            .HasMaxLength(20);
+
+        builder.Property(o => o.ShippingAddress)
+            .HasMaxLength(500);
+
         builder.Property(o => o.Note)
             .HasMaxLength(500);
 

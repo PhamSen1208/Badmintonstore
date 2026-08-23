@@ -1605,7 +1605,9 @@ Status:
 ```text
 React auth UI: In progress
 Login/Register pages: implemented visually
-Auth API integration: started
+Auth API integration: implemented first pass
+AuthContext/ProtectedRoute/Dashboard test page: implemented
+Current frontend build: failing because ApiResponse.data is optional
 ```
 
 Frontend stack:
@@ -1632,11 +1634,17 @@ Current auth UI files:
 ```text
 src/features/auth/components/AuthShell.tsx
 src/features/auth/components/PasswordInput.tsx
+src/features/auth/context/AuthContext.tsx
+src/features/auth/hooks/useAuth.ts
 src/features/auth/pages/LoginPage.tsx
 src/features/auth/pages/RegisterPage.tsx
+src/features/auth/pages/DashboardPage.tsx
 src/features/auth/schemas/auth.schema.ts
 src/features/auth/services/auth.service.ts
 src/features/auth/types/auth.types.ts
+src/app/ProtectRoute.tsx
+src/app/router.tsx
+src/lib/api.ts
 src/components/ui/form.tsx
 ```
 
@@ -1647,10 +1655,13 @@ Current auth UI behavior:
 - Password input supports show/hide password.
 - Forms use `react-hook-form`.
 - Validation uses `zodResolver`.
-- Fake API error handling was added first for learning.
+- Login/Register now call the real backend through AuthContext and auth.service.
 - UI uses shadcn components such as Button, Input, Form, Alert, Checkbox.
 - Auth pages use a shared `AuthShell`.
 - AuthShell uses a badminton/sports background image instead of a plain gradient.
+- Login success redirects to `/dashboard`.
+- Dashboard is currently a temporary auth test page.
+- Logout calls the backend, clears frontend auth state, and redirects to `/login`.
 
 Frontend auth validation rules:
 
@@ -1666,7 +1677,7 @@ Register:
 - confirmPassword must match password
 ```
 
-Frontend auth architecture planned:
+Frontend auth architecture implemented:
 
 ```text
 AuthContext
@@ -1686,6 +1697,87 @@ ProtectedRoute
 DashboardPage temporary
 -> used to test login/logout/me before building real storefront/admin layout
 ```
+
+Current frontend auth flow:
+
+```text
+LoginPage/RegisterPage
+-> react-hook-form controls form state
+-> Zod validates input
+-> useAuth() gets functions from AuthContext
+-> AuthContext calls auth.service
+-> auth.service calls Axios api client
+-> backend returns accessToken + user and sets refreshToken cookie
+-> AuthContext stores user/accessToken in memory
+-> api.ts sets the Bearer Authorization header
+-> router redirects to the protected dashboard
+```
+
+Reload/bootstrap flow:
+
+```text
+Browser reload clears React memory
+-> HttpOnly refreshToken cookie remains
+-> AuthProvider useEffect calls POST /api/auth/refresh
+-> backend rotates refresh token and returns a new access token
+-> AuthContext restores user/accessToken
+-> ProtectedRoute allows or rejects access
+```
+
+Logout flow:
+
+```text
+Dashboard calls useAuth().logout()
+-> AuthContext calls auth.service.logout()
+-> backend revokes refresh token and deletes cookie
+-> AuthContext clears user/accessToken and Axios Authorization header
+-> router redirects to /login
+```
+
+## Frontend Auth Current Fix List
+
+1. `ApiResponse<T>` currently declares optional data:
+
+```ts
+data?: T
+```
+
+This makes service results `AuthResponse | undefined` and causes TypeScript build errors in AuthContext.
+
+For current success responses, use:
+
+```ts
+data: T
+```
+
+2. `getMe()` currently points to the wrong endpoint:
+
+```text
+Wrong: /api/customers/me
+Correct: /api/auth/me
+```
+
+3. `AuthUser.customerId` should be nullable:
+
+```ts
+customerId: number | null
+```
+
+Admin/Staff users may not have a Customer profile.
+
+4. Register currently calls `applyAuth(result)` but redirects to `/login`.
+
+The backend already returns tokens and logs the new account in, so the consistent redirect is:
+
+```text
+/dashboard
+```
+
+Alternatively, change the backend register contract so it does not issue tokens. For the current implementation, redirecting to dashboard is simpler.
+
+5. File naming is currently `ProtectRoute.tsx` while the component is `ProtectedRoute`. Rename to `ProtectedRoute.tsx` later for consistency.
+
+6. AuthContext currently refreshes the session when the app boots/reloads. Automatic refresh and retry after an arbitrary API returns 401 still requires an Axios interceptor and has not been implemented yet.
 
 Important FE auth idea:
 
@@ -1763,9 +1855,9 @@ Expected request after fix:
 http://localhost:5006/api/auth/register
 ```
 
-## Next Review Session Plan
+## Frontend Auth End-to-End Review
 
-Next learning review should walk the full auth flow end-to-end:
+The full authentication flow has now been reviewed end-to-end:
 
 ```text
 1. User opens /login
@@ -1788,8 +1880,57 @@ Next learning review should walk the full auth flow end-to-end:
 18. AuthContext clears auth state and redirects to /login
 ```
 
-Goal of that review:
+Main learning goal:
 
 ```text
 Make backend auth and frontend auth feel like one continuous flow instead of many disconnected files.
 ```
+
+## Frontend Admin Products Module
+
+Completed the Admin Products management interface (`/admin/products`):
+
+- **Service & Types (`admin-product.service.ts`, `product.types.ts`)**:
+  - `getProductList`: GET `/api/products` with pagination, keyword search, and status filtering.
+  - `getProductById`: GET `/api/products/{id}`.
+  - `createProduct`: POST `/api/products`.
+  - `updateProduct`: PUT/PATCH `/api/products/{id}`.
+  - `updateProductStatus`: PATCH `/api/products/{id}/status`.
+- **Components & UI**:
+  - `ProductTable.tsx`: Tabular view of products showing code, name, brand, category, price range, status badge, and action buttons.
+  - `ProductForm.tsx`: Modal form using React Hook Form + Zod for creating and editing products.
+  - `ProductStatusBadge.tsx`: Visual badge indicating active/inactive product status.
+  - `AdminProductsPage.tsx`: Main page coordinating state, filtering (`all` / `active` / `inactive`), keyword search, pagination, and navigating to product variants (`/admin/products/{id}/variants`).
+
+## Frontend Admin Product Variants Module
+
+Completed the Admin Product Variants management interface (`/admin/products/:productId/variants`):
+
+- **Service & Types (`product-variant.service.ts`, `product-variant.types.ts`)**:
+  - Defined `ProductVariantListItem`, request/response DTOs for create, update, and status toggle.
+  - Implemented API calls to `/api/products/{productId}/variants` and `/api/product-variants/{productVariantId}`.
+- **Components & UI**:
+  - `VariantTable.tsx`: Displays SKU, Color, Size, Weight, Price, Status, and action buttons (Edit, Toggle Status).
+  - `VariantForm.tsx`: React Hook Form + Zod form supporting create mode (with SKU) and update mode.
+  - `VariantStatusBadge.tsx`: Displays badge statuses as **"Đang hoạt động"** (`active`) and **"Ngừng hoạt động"** (`inactive`).
+  - `AdminProductVariantPage.tsx`: Manages list state by `productId`, keyword search (SKU, color, size), status filter, pagination, and back navigation to the Products list.
+
+## Product Variant Pricing & Validation Alignment
+
+Resolved HTTP 400 Bad Request errors when creating or updating product variants by aligning frontend semantics and backend validation rules:
+
+1. **Pricing Domain Rules**:
+   - `Price`: Regular retail selling price (**Giá bán** / giá niêm yết).
+   - `SalePrice`: Promotional / discounted selling price (**Giá khuyến mãi**).
+   - Rule: `SalePrice` is optional and must satisfy `SalePrice <= Price`.
+2. **UI Form Alignment (`VariantForm.tsx`)**:
+   - Updated form field labels to clearly communicate business meaning to users:
+     - `price` field label -> **"Giá bán"**
+     - `salePrice` field label -> **"Giá khuyến mãi"**
+3. **Backend Validation Alignment (`ProductVariantService.cs`)**:
+   - Updated validation messages in both `ValidateRequest` and `ValidateUpdateRequest` methods:
+     - When `request.SalePrice.Value > request.Price`, throws `ValidationException("INVALID_SALE_PRICE", "Giá khuyến mãi không được lớn hơn giá bán.")`.
+4. **UI/UX Polish**:
+   - Styled back navigation button in `AdminProductVariantPage.tsx` with high-contrast black/white hover transitions.
+   - Standardized status badges to Vietnamese terminology ("Đang hoạt động" / "Ngừng hoạt động").
+

@@ -1,0 +1,21 @@
+﻿
+Name                         Status StartType
+----                         ------ ---------
+MSOLAP$MSSQLSERVER22        Stopped    Manual
+MSSQL$MSSQLSERVER01         Stopped    Manual
+MSSQL$MSSQLSERVER22         Running Automatic
+MSSQL$SQLEXPRESS            Stopped    Manual
+MSSQLSERVER                 Stopped    Manual
+PostgreSQL_For_Odoo         Stopped    Manual
+SQLAgent$MSSQLSERVER22      Stopped    Manual
+SQLBrowser                  Running Automatic
+SQLPBDMS$MSSQLSERVER22      Stopped    Manual
+SQLPBENGINE$MSSQLSERVER22   Stopped    Manual
+SQLTELEMETRY                Stopped  Disabled
+SQLTELEMETRY$MSSQLSERVER01  Stopped  Disabled
+SQLTELEMETRY$MSSQLSERVER22  Stopped  Disabled
+SQLTELEMETRY$SQLEXPRESS     Stopped  Disabled
+SSASTELEMETRY$MSSQLSERVER22 Stopped  Disabled
+
+
+

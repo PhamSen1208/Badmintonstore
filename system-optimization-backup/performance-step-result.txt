@@ -1,0 +1,10 @@
+﻿Pagefile registry:
+c:\pagefile.sys 0 0
+
+Background packages disabled:
+Microsoft.PowerAutomateDesktop_8wekyb3d8bbwe
+Microsoft.YourPhone_8wekyb3d8bbwe
+MicrosoftWindows.CrossDevice_cw5n1h2txyewy
+
+NVIDIA launcher task state: Disabled
+Restart Windows to activate the pagefile change.

@@ -33,18 +33,21 @@ export function AuthProvider({children}: AuthProviderProps)
     const [accessTokenValue, setAccessTokenValue] = useState<string | null>(null); // Lưu accessToken
     const [isBootstrapping, setIsBootstrapping] = useState(true); //Lưu trạng thái khởi tạo
 
+    // Hàm áp dụng thông tin đăng nhập vào state
     const applyAuth = useCallback((result: AuthResponse) => {
         setUser(result.user)
         setAccessTokenValue(result.accessToken)
         setAccessToken(result.accessToken)
     }, [])
-    
+
+    // Hàm xóa thông tin đăng nhập
     const clearAuth = useCallback(() => {
         setUser(null);
         setAccessTokenValue(null)
         setAccessToken(null)
     }, [])
 
+    // Effect để kiểm tra xem user đã đăng nhập chưa hay refresh trang
     useEffect(() => {
         async function bootstrapAuth()
         {

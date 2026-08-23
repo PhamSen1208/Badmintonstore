@@ -5,8 +5,6 @@ using BadmintonStores.Application.Common.Exceptions;
 using Microsoft.EntityFrameworkCore;
 using BadmintonStores.Domain.Enums;
 using BadmintonStores.Domain.Entities;
-
-
 namespace BadmintonStores.Infrastructure.Services;
 
 public class OrderService : IOrderService
@@ -104,7 +102,10 @@ public class OrderService : IOrderService
         });
 
         decimal discountAmount = 0; //Tạm để
-        var totalAmount = subTotal - discountAmount;
+        decimal shippingFee = request.ShippingFee >= 0 ? request.ShippingFee : 0;
+        decimal taxRate = request.TaxRate > 0 ? request.TaxRate : 0.08m; // Mặc định 8% VAT nếu không chỉ định
+        decimal taxAmount = Math.Round((subTotal - discountAmount) * taxRate, 2);
+        var totalAmount = subTotal - discountAmount + shippingFee + taxAmount;
 
         // Bắt đầu transaction để đảm bảo tính toàn vẹn dữ liệu
         await using var transaction = await _dbContext.Database.BeginTransactionAsync(cancellationToken);
@@ -114,11 +115,17 @@ public class OrderService : IOrderService
         {
             OrderCode = await GenerateOrderCodeAsync(cancellationToken),
             CustomerId = request.CustomerId,
+            RecipientName = request.RecipientName,
+            ShippingPhone = request.ShippingPhone,
+            ShippingAddress = request.ShippingAddress,
             OrderDate = DateTime.UtcNow,
             Status = OrderStatus.Confirmed,
             PaymentStatus = paymentMethod.HasValue ? PaymentStatus.Paid : PaymentStatus.Unpaid,
             Subtotal = subTotal,
             DiscountAmount = discountAmount,
+            ShippingFee = shippingFee,
+            TaxRate = taxRate,
+            TaxAmount = taxAmount,
             TotalAmount = totalAmount,
             CreatedAt = DateTime.UtcNow,
             Note = request.Note
@@ -238,9 +245,11 @@ public class OrderService : IOrderService
             throw new ValidationException("INVALID_ORDER_ID", "OrderId không hợp lệ");
         }
         
-        //lấy thông tin đơn hàng từ database, bao gồm cả chi tiết đơn hàng và thông tin thanh toán
+        //Lấy thông tin đơn hàng từ database, bao gồm cả chi tiết đơn hàng, thông tin thanh toán và thông tin khách hàng
         var order = await _dbContext.Orders
-            .Include(od => od.OrderDetails)
+            .Include(o => o.Customer)
+                .ThenInclude(c => c.User)
+            .Include(o => o.OrderDetails) 
             .Include(o => o.Payments)
             .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
         
@@ -249,16 +258,24 @@ public class OrderService : IOrderService
             throw new NotFoundException("ORDER_NOT_FOUND", "Đơn hàng không tồn tại");
         }
 
-        var payment = order.Payments.FirstOrDefault(); // Giả sử mỗi đơn hàng chỉ có 1 bản ghi payment, nếu có nhiều hơn thì cần điều chỉnh lại cho phù hợp
+        var payment = order.Payments.FirstOrDefault(); // Giả sử mỗi đơn hàng chỉ có 1 bản ghi payment
         return new GetOrderDetailResult
         {
             OrderId = order.Id,
             OrderCode = order.OrderCode,
             Status = order.Status.ToString().ToLowerInvariant(),
             PaymentStatus = order.PaymentStatus.ToString().ToLowerInvariant(),
-            Subtotal = order.Subtotal,
+            CustomerId = order.CustomerId,
+            CustomerName = order.Customer?.FullName ?? string.Empty,
+            RecipientName = order.RecipientName ?? order.Customer?.FullName,
+            ShippingPhone = order.ShippingPhone ?? order.Customer?.User?.Phone,
+            ShippingAddress = order.ShippingAddress,
             Note = order.Note,
+            Subtotal = order.Subtotal,
             DiscountAmount = order.DiscountAmount,
+            ShippingFee = order.ShippingFee,
+            TaxRate = order.TaxRate,
+            TaxAmount = order.TaxAmount,
             TotalAmount = order.TotalAmount,
             Items = order.OrderDetails.Select(od => new GetOrderDetailItemResult
             {
@@ -403,6 +420,11 @@ public class OrderService : IOrderService
         }
 
         order.Status = OrderStatus.Cancelled;
+        //Nếu đơn hàng đã được thanh toán nhưng hủy -> refund
+        if(order.PaymentStatus == PaymentStatus.Paid)
+        {
+            order.PaymentStatus = PaymentStatus.Refunded;
+        }
         order.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -495,10 +517,11 @@ public class OrderService : IOrderService
 
     private static PaymentStatus ParsePaymentStatus(string status)
     {
-        return status.Trim().ToLower() switch
+        return status.Trim().ToLower() switch 
         {
             "paid" => PaymentStatus.Paid,
             "unpaid" => PaymentStatus.Unpaid,
+            "refunded" => PaymentStatus.Refunded,
             _ => throw new ValidationException("INVALID_PAYMENT_STATUS", $"Trạng thái thanh toán '{status}' không hợp lệ")
         };
     }
@@ -516,7 +539,7 @@ public class OrderService : IOrderService
     private static string BuildVariantName(ProductVariant variant)
     {
         var parts = new [] {variant.Color, variant.Size}
-            .Where(s => !string.IsNullOrWhiteSpace(s));
+            .Where(s => !string.IsNullOrWhiteSpace(s)); 
         return string.Join(" - ", parts);
     }
 

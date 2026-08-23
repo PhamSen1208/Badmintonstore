@@ -6,10 +6,18 @@ public class GetOrderDetailResult
     public string OrderCode { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string PaymentStatus { get; set; } = string.Empty;
+    public int CustomerId { get; set; }
+    public string CustomerName { get; set; } = string.Empty;
+    public string? RecipientName { get; set; }
+    public string? ShippingPhone { get; set; }
+    public string? ShippingAddress { get; set; }
     public string? Note { get; set; }
 
     public decimal Subtotal { get; set; }
     public decimal DiscountAmount { get; set; }
+    public decimal ShippingFee { get; set; }
+    public decimal TaxRate { get; set; }
+    public decimal TaxAmount { get; set; }
     public decimal TotalAmount { get; set; }
 
     public List<GetOrderDetailItemResult> Items { get; set; } = new();

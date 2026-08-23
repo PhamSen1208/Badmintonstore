@@ -136,6 +136,7 @@ public class AuthController : ControllerBase
         return HttpContext.Connection.RemoteIpAddress?.ToString();
     }
 
+    // Lưu refresh token vào cookie
     private void SetRefreshTokenCookie(string refreshToken, DateTime expiresAt)
     {
         Response.Cookies.Append(
@@ -151,6 +152,7 @@ public class AuthController : ControllerBase
         );
     }
 
+    // Xóa refresh token cookie
     private void DeleteRefreshTokenCookie()
     {
         Response.Cookies.Delete(

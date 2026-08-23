@@ -1,0 +1,3 @@
+﻿RecEnabled=0
+IsShadowPlayEnabled=0
+ShareProcesses=1

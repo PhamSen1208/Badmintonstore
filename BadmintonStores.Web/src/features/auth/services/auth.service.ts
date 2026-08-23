@@ -23,7 +23,7 @@ export async function register(request: RegisterRequest) {
 //Lấy thông tin người dùng hiện tại
 export async function getMe() {
     const response = await api.get<ApiResponse<AuthResponse["user"]>>(
-        "api/customers/me"
+        "api/auth/me"
     )
     return response.data.data
 }

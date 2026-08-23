@@ -32,6 +32,8 @@ public class ProductService : IProductService
             ProductCode = request.ProductCode.Trim(),
             ProductName = request.ProductName.Trim(),
             BasePrice = request.BasePrice,
+            CategoryId = request.CategoryId,
+            BrandId = request.BrandId,
             Description = request.Description,
             Warranty = request.Warranty,
             Status = RecordStatus.Active,
@@ -135,6 +137,8 @@ public class ProductService : IProductService
 
         product.ProductName = request.ProductName.Trim();
         product.BasePrice = request.BasePrice;
+        if (request.CategoryId.HasValue) product.CategoryId = request.CategoryId;
+        if (request.BrandId.HasValue) product.BrandId = request.BrandId;
         product.Description = request.Description;
         product.Warranty = request.Warranty;
         product.UpdatedAt = DateTime.UtcNow;
@@ -160,7 +164,7 @@ public class ProductService : IProductService
 
         pageSize = pageSize > 100 ? 100 : pageSize; // Giới hạn
 
-        var productsQuery = _dbContext.Products.AsQueryable();
+        var productsQuery = _dbContext.Products.AsNoTracking().AsQueryable();
 
         //filter theo keyword
         if(!string.IsNullOrWhiteSpace(request.Keyword))
@@ -178,10 +182,24 @@ public class ProductService : IProductService
             productsQuery = productsQuery.Where(p => p.Status == status);
         }
 
+        //filter theo CategoryId
+        if(request.CategoryId.HasValue && request.CategoryId.Value > 0)
+        {
+            productsQuery = productsQuery.Where(p => p.CategoryId == request.CategoryId.Value);
+        }
+
+        //filter theo BrandId
+        if(request.BrandId.HasValue && request.BrandId.Value > 0)
+        {
+            productsQuery = productsQuery.Where(p => p.BrandId == request.BrandId.Value);
+        }
+
         var totalItems = await productsQuery.CountAsync(cancellationToken);
         var totalPages = (int)Math.Ceiling(totalItems/(double)pageSize);
 
         var items = await productsQuery
+            .Include(p => p.Category)
+            .Include(p => p.Brand)
             .OrderByDescending(p => p.CreatedAt)
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
@@ -192,6 +210,10 @@ public class ProductService : IProductService
                 ProductName = p.ProductName,
                 BasePrice = p.BasePrice,
                 Status = p.Status.ToString().ToLowerInvariant(),
+                CategoryId = p.CategoryId,
+                CategoryName = p.Category != null ? p.Category.Name : null,
+                BrandId = p.BrandId,
+                BrandName = p.Brand != null ? p.Brand.Name : null,
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt
             }).ToListAsync(cancellationToken);
