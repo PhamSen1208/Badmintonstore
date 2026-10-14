@@ -23,10 +23,12 @@ import { PasswordInput } from "../components/PasswordInput"
 import { loginSchema, type LoginFormValues } from "../schemas/auth.schema"
 import { getDefaultRouteByRole } from "@/features/auth/utils/auth-redirect";
 
+import { GoogleLogin } from "@react-oauth/google"
+
 export function LoginPage() {
     const [serverError, setServerError] = useState<string | null>(null)
     const navigate = useNavigate()
-    const { login } = useAuth()
+    const { login, loginWithGoogle } = useAuth()
     const form = useForm<LoginFormValues>({
         resolver: zodResolver(loginSchema),
         defaultValues: {
@@ -51,6 +53,18 @@ export function LoginPage() {
         catch 
         {
             setServerError("Email hoặc mật khẩu không đúng")
+        }
+    }
+
+    async function handleGoogleSuccess(credentialResponse: any) {
+        setServerError(null);
+        if (credentialResponse.credential) {
+            try {
+                const response = await loginWithGoogle(credentialResponse.credential);
+                navigate(getDefaultRouteByRole(response.user.role));
+            } catch (err: any) {
+                setServerError("Đăng nhập bằng Google thất bại. Vui lòng thử lại!");
+            }
         }
     }
 
@@ -154,13 +168,24 @@ export function LoginPage() {
                     </form>
                 </Form>
 
-                <div className="relative my-7">
+                <div className="relative my-6">
                     <div className="absolute inset-0 flex items-center">
                         <div className="w-full border-t border-neutral-200" />
                     </div>
                     <div className="relative flex justify-center">
-                        <span className="bg-white px-3 text-xs text-neutral-400">hoặc</span>
+                        <span className="bg-white px-3 text-xs text-neutral-400">hoặc đăng nhập bằng</span>
                     </div>
+                </div>
+
+                <div className="flex justify-center my-4">
+                    <GoogleLogin
+                        onSuccess={handleGoogleSuccess}
+                        onError={() => setServerError("Đăng nhập bằng Google thất bại")}
+                        text="signin_with"
+                        shape="pill"
+                        size="large"
+                        width="100%"
+                    />
                 </div>
 
                 <p className="text-center text-sm text-neutral-500">

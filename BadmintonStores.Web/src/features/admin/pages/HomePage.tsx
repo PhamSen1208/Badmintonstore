@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { ShieldCheck, Zap, Award, ChevronRight, ShoppingBag } from "lucide-react";
+import { ShieldCheck, Zap, Award, ChevronRight, ShoppingBag, Heart } from "lucide-react";
 import { SkeletonProductGrid } from "@/features/client/components/SkeletonProductCard";
+import { useWishlist } from "@/features/client/context/WishlistContext";
 import { getProducts } from "@/features/admin/products/services/admin-product.service";
 import type { ProductListItem } from "@/features/admin/products/types/admin-product.types";
 import { currencyFormatter } from "@/lib/formatters";
@@ -13,6 +14,7 @@ import vot from "@/assets/vot-cau-long-danh-muc-home.jpg";
 export function HomePage() {
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const { isFavorite, toggleFavorite } = useWishlist();
 
   useEffect(() => {
     async function loadFeaturedProducts() {
@@ -257,6 +259,18 @@ export function HomePage() {
                         {product.brandName}
                       </span>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        toggleFavorite(product.productId);
+                      }}
+                      title={isFavorite(product.productId) ? "Bỏ thích" : "Thêm vào yêu thích"}
+                      className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors z-10"
+                    >
+                      <Heart className={`h-4 w-4 ${isFavorite(product.productId) ? "fill-red-500 text-red-500" : ""}`} />
+                    </button>
                   </div>
 
                   <div>

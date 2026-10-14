@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
-import { Package, ShoppingCart, Warehouse, Users, Boxes, History, Tag, Layers, ChevronDown, ChevronRight } from "lucide-react";
+import { Package, ShoppingCart, Warehouse, Users, Boxes, History, Tag, Layers, ChevronDown, ChevronRight, Ticket, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { getCategories } from "@/features/admin/categories/services/admin-categories.service";
@@ -140,6 +140,27 @@ export function AdminLayout() {
             >
               <History className="h-4 w-4" />
               Nhật ký tồn kho
+            </Link>
+
+            <Link
+              to="/admin/coupons"
+              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                location.pathname.startsWith("/admin/coupons") ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <Ticket className="h-4 w-4" />
+              Mã giảm giá
+            </Link>
+
+            {/* Quản lý đánh giá */}
+            <Link
+              to="/admin/reviews"
+              className={`flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                location.pathname.startsWith("/admin/reviews") ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-slate-700 hover:bg-slate-100"
+              }`}
+            >
+              <MessageSquare className="h-4 w-4" />
+              Đánh giá
             </Link>
 
             {/* Khách hàng */}

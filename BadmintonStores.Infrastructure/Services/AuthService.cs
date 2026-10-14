@@ -5,6 +5,7 @@ using BadmintonStores.Domain.Entities;
 using BadmintonStores.Domain.Enums;
 using BadmintonStores.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Google.Apis.Auth;
 
 namespace BadmintonStores.Infrastructure.Services;
 
@@ -127,6 +128,79 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task<AuthResult> GoogleLoginAsync(GoogleLoginDto dto, string? ipAddress, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(dto.IdToken))
+        {
+            throw new ValidationException("TOKEN_REQUIRED", "Google IdToken là bắt buộc");
+        }
+
+        GoogleJsonWebSignature.Payload payload;
+        try
+        {
+            payload = await GoogleJsonWebSignature.ValidateAsync(dto.IdToken);
+        }
+        catch (Exception)
+        {
+            throw new ValidationException("INVALID_GOOGLE_TOKEN", "Google IdToken không hợp lệ hoặc đã hết hạn");
+        }
+
+        var email = payload.Email.Trim().ToLowerInvariant();
+        var user = await _dbContext.Users.Include(u => u.Customer)
+            .FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
+        if (user == null)
+        {
+            // Tự động khởi tạo tài khoản mới nếu lần đầu đăng nhập Google
+            user = new User
+            {
+                Email = email,
+                Role = UserRole.Customer,
+                Status = UserStatus.Active,
+                PasswordHash = Guid.NewGuid().ToString(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            var customer = new Customer
+            {
+                User = user,
+                CustomerCode = await GenerateCustomerCodeAsync(cancellationToken),
+                FullName = string.IsNullOrWhiteSpace(payload.Name) ? "Khách hàng Google" : payload.Name.Trim(),
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _dbContext.Users.Add(user);
+            _dbContext.Customers.Add(customer);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        if (user.Status != UserStatus.Active)
+        {
+            throw new ValidationException("USER_INACTIVE", "Tài khoản của bạn đang bị khóa. Vui lòng liên hệ quản trị viên.");
+        }
+
+        var accessToken = _jwtTokenService.GenerateAccessToken(user);
+        var refreshToken = await _refreshTokenService.CreateRefreshTokenAsync(user, ipAddress, cancellationToken);
+
+        return new AuthResult
+        {
+            AccessToken = accessToken.AccessToken,
+            ExpiresAt = accessToken.ExpiresAt,
+            RefreshToken = refreshToken.Token,
+            RefreshTokenExpiresAt = refreshToken.ExpiresAt,
+            User = new AuthUserResult
+            {
+                UserId = user.Id,
+                CustomerId = user.Customer?.Id,
+                Email = user.Email,
+                Phone = user.Phone,
+                Role = user.Role.ToString().ToLowerInvariant(),
+                Status = user.Status.ToString().ToLowerInvariant(),
+                FullName = user.Customer?.FullName
+            }
+        };
+    }
+
     public async Task LogoutAsync(string? refreshToken, string? ipAddress, CancellationToken cancellationToken = default)
     {
         if(string.IsNullOrWhiteSpace(refreshToken))
@@ -163,6 +237,7 @@ public class AuthService : IAuthService
         };
     }
 
+    //Hàm refreshToken
     public async Task<AuthResult> RefreshTokenAsync(string refreshToken, string? ipAddress, CancellationToken cancellationToken = default)
     {
         var rotationResult = await _refreshTokenService.RotateRefreshTokenAsync(refreshToken, ipAddress, cancellationToken);
@@ -187,6 +262,48 @@ public class AuthService : IAuthService
             }
         };
     }
+
+    //Hàm đổi mật khẩu
+    public async Task ChangePasswordAsync(int userId, ChangePasswordDto dto, CancellationToken cancellationToken = default)
+    {
+        if(string.IsNullOrWhiteSpace(dto.CurrentPassword))
+        {
+            throw new ValidationException("CURRENT_PASSWORD_REQUIRED", "Mật khẩu hiện tại là bắt buộc");
+        }
+        if(string.IsNullOrWhiteSpace(dto.NewPassword))
+        {
+            throw new ValidationException("NEW_PASSWORD_REQUIRED", "Mật khẩu mới là bắt buộc");
+        }
+        if(string.IsNullOrWhiteSpace(dto.ConfirmNewPassword))
+        {
+            throw new ValidationException("CONFIRM_NEW_PASSWORD_REQUIRED", "Xác nhận mật khẩu mới là bắt buộc");
+        }
+
+        ValidatePassword(dto.NewPassword);
+        if(dto.NewPassword != dto.CurrentPassword)
+        {
+            throw new ValidationException("PASSWORDS_MISMATCH", "Mật khẩu mới và mật khẩu xác nhận không khớp");
+        }
+
+        var user = await _dbContext.Users.FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        if(user == null)
+        {
+            throw new ValidationException("USER_NOT_FOUND", "Không tìm thấy người dùng");
+        }
+
+        //Kiểm tra current password có đúng không
+        var isCurrentPasswordValid = _passwordHasherService.VerifyPassword(user, user.PasswordHash, dto.CurrentPassword);
+        if(!isCurrentPasswordValid)
+        {
+            throw new ValidationException("INCORRECT_CURRENT_PASSWORD", "Mật khẩu hiện tại không đúng");
+        }
+
+        user.PasswordHash = _passwordHasherService.HashPassword(user, dto.NewPassword);
+        user.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken); 
+    }
+
 
     private static void ValidatePassword(string password)
     {

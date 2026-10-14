@@ -3,10 +3,16 @@ export type CustomerListItem = {
     userId: number;
     customerCode: string;
     fullName: string;
+    email: string;
+    phone?: string;
+    userStatus: string;
     gender: string;
-    dateOfBirth: string;
+    dateOfBirth?: string;
+    totalOrders: number;
+    totalSpent: number;
+    lastOrderDate?: string;
     createdAt: string;
-    updatedAt: string;
+    updatedAt?: string;
 }
 
 export type GetCustomersResponse = {

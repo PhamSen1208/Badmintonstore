@@ -5,7 +5,6 @@ import { PublicLayout } from "@/features/admin/layouts/PublicLayout";
 import { HomePage } from "@/features/admin/pages/HomePage";
 import { AdminLayout } from "@/features/admin/layouts/AdminLayout";
 import { AdminHomePage } from "@/features/admin/pages/AdminHomePage";
-import { AccountPage } from "@/features/admin/pages/AccountPage";
 import { ProtectedRoute } from "@/app/ProtectRoute";
 import { RoleRoute } from "@/app/RoleRoute";
 import { AdminProductsPage } from "@/features/admin/pages/AdminProductsPage";
@@ -26,6 +25,14 @@ import { StoresPage } from "@/features/client/pages/StoresPage";
 import { AboutPage } from "@/features/client/pages/AboutPage";
 import { NewsPage } from "@/features/client/pages/NewsPage";
 import { RecruitmentPage } from "@/features/client/pages/RecruitmentPage";
+import { ProfilePage } from "@/features/client/pages/ProfilePage";
+import { MyOrdersPage } from "@/features/client/pages/MyOrdersPage";
+import { MyWishlistPage } from "@/features/client/pages/MyWishlistPage";
+import { AccountLayout } from "@/features/client/components/AccountLayout";
+import { ChangePasswordForm } from "@/features/client/components/ChangePasswordForm";
+import { AdminCouponsPage } from "@/features/admin/pages/AdminCouponsPage";
+import { AdminReviewsPage } from "@/features/admin/pages/AdminReviewsPage";
+
 
 export const router = createBrowserRouter([
     {
@@ -75,10 +82,27 @@ export const router = createBrowserRouter([
                 element: <ProtectedRoute />,
                 children: [
                     {
-                        path: "/account",
-                        element: <AccountPage />,
+                        element: <AccountLayout />,
+                        children: [
+                            {
+                                path: "/profile",
+                                element: <ProfilePage />,
+                            },
+                            {
+                                path: "/account/orders",
+                                element: <MyOrdersPage />,
+                            },
+                            {
+                                path: "/account/wishlist",
+                                element: <MyWishlistPage />,
+                            },
+                            {
+                                path: "/account/security",
+                                element: <ChangePasswordForm />,
+                            },
+                        ]
                     },
-                ],
+                ]
             },
         ],
     },
@@ -136,6 +160,14 @@ export const router = createBrowserRouter([
                     {
                         path: "customers",
                         element: <AdminCustomersPage />
+                    },
+                    {
+                        path: "coupons",
+                        element: <AdminCouponsPage />
+                    },
+                    {
+                        path: "reviews",
+                        element: <AdminReviewsPage />
                     }
                 ],
             },

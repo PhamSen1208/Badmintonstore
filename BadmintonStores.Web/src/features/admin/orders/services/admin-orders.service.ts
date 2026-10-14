@@ -60,3 +60,21 @@ export async function updateOrderNote(orderId: number, request: UpdateOrderNoteR
     );
     return response.data.data;
 }
+
+// 6. Cập nhật trạng thái đơn hàng
+export async function updateOrderStatus(orderId: number, status: string) {
+    const response = await api.patch<ApiResponse<{ orderId: number; orderCode: string; status: string }>>(
+        `/api/orders/${orderId}/status`,
+        { status }
+    );
+    return response.data.data;
+}
+
+// 7. Cập nhật trạng thái thanh toán
+export async function updatePaymentStatus(orderId: number, paymentStatus: string) {
+    const response = await api.patch<ApiResponse<{ orderId: number; orderCode: string; paymentStatus: string }>>(
+        `/api/orders/${orderId}/payment-status`,
+        { paymentStatus }
+    );
+    return response.data.data;
+}

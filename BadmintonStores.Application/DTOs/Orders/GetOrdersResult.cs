@@ -2,7 +2,7 @@ namespace BadmintonStores.Application.DTOs.Orders;
 
 public class GetOrdersResult
 {
-    public List<GetOrdersItemResult> Items { get; set; } = new();
+    public List<GetOrdersItemResult> Items { get; set; } = new(); 
 
     public int PageNumber {get; set;}
     public int PageSize {get; set;}

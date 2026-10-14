@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Search, ShoppingBag, User, ShieldCheck, Truck, PhoneCall, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, ShoppingBag, ShieldCheck, Truck, PhoneCall, ChevronDown, ChevronRight } from "lucide-react";
 import { getCategories } from "@/features/admin/categories/services/admin-categories.service";
 import { getBrands } from "@/features/admin/brands/services/admin-brands.service";
 import { useCart } from "@/features/client/cart/context/CartContext";
+import { UserNavDropdown } from "./UserNavDropdown";
 import type { CategoryListItem } from "@/features/admin/categories/types/admin-categories.types";
 import type { BrandListItem } from "@/features/admin/brands/types/admin-brands.types";
 
@@ -14,7 +15,7 @@ export function ClientHeader() {
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isProductMenuOpen, setIsProductMenuOpen] = useState(false);
     const [categories, setCategories] = useState<CategoryListItem[]>([]);
-    const [brands, setBrands] = useState<BrandListItem[]>([]);  
+    const [brands, setBrands] = useState<BrandListItem[]>([]);
 
     useEffect(() => {
         async function loadDropdowns() {
@@ -23,10 +24,11 @@ export function ClientHeader() {
                     getCategories(),
                     getBrands(),
                 ]);
-                setCategories(categoriesData);
-                setBrands(brandsData);
+                setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+                setBrands(Array.isArray(brandsData) ? brandsData : []);
             } catch {
-                // Nếu lỗi load API, website vẫn hoạt động với dữ liệu giả
+                setCategories([]);
+                setBrands([]);
             }
         }
         loadDropdowns();
@@ -142,13 +144,11 @@ export function ClientHeader() {
                         </span>
                     </Link>
 
-                    <Link to="/login" className="flex items-center gap-2 px-4 py-2 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-medium text-sm transition-colors shadow-md shadow-orange-500/20">
-                        <User className="h-4 w-4" />
-                        <span>Đăng nhập</span>
-                    </Link>
+                    {/* NÚT TÀI KHOẢN / ĐĂNG NHẬP */}
+                    <UserNavDropdown />
                 </div>
-            </div>
-
+            </div>      
+            
             {/* 3. THANH MENU ĐIỀU HƯỚNG NGANG */}
             <nav className="bg-white border-t border-slate-200 shadow-sm text-slate-800 relative z-40">
                 <div className="w-full max-w mx-auto px-4 md:px-8 lg:px-72 justify-between flex items-center gap-6 md:gap-8 text-xs md:text-sm font-bold uppercase tracking-wider">

@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { OrderTable } from "../orders/components/OrderTable";
 import { OrderForm } from "../orders/components/OrderForm";
-import { OrderStatusBadge, PaymentStatusBadge } from "../orders/components/OrderStatusBadge";
-import { getOrders, getOrderById, createOrder, cancelOrder, updateOrderNote } from "../orders/services/admin-orders.service";
+import { getOrders, getOrderById, createOrder, cancelOrder, updateOrderNote, updateOrderStatus, updatePaymentStatus } from "../orders/services/admin-orders.service";
 import type { OrderListItem, GetOrderDetailResponse, CreateOrderRequest } from "../orders/types/admin-orders.types";
 
 import { currencyFormatter } from "@/lib/formatters";
@@ -124,6 +123,40 @@ export function AdminOrdersPage() {
         );
     });
 
+    //Xử lý đổi trạng thái đơn hàng
+    async function handleUpdateStatus(newStatus:string)
+    {
+        if(!selectedOrderDetail)
+        {
+            return;   
+        }
+        try{
+            setErrorMessage(null);
+            const result = await updateOrderStatus(selectedOrderDetail.orderId, newStatus);
+            setSelectedOrderDetail({...selectedOrderDetail, status:result.status});
+            await loadOrders();
+        }
+        catch(err:any) 
+        {
+            setErrorMessage(err?.response?.data?.message || "Không thể cập nhật trạng thái đơn hàng.");       
+        }
+    }
+
+     async function handleUpdatePayment(newPaymentStatus: string) {
+        if (!selectedOrderDetail) return;
+        try {
+            setErrorMessage(null);
+            const result = await updatePaymentStatus(selectedOrderDetail.orderId, newPaymentStatus);
+            setSelectedOrderDetail({
+                ...selectedOrderDetail,
+                paymentStatus: result.paymentStatus
+            });
+            await loadOrders();
+        } catch (err: any) {
+            setErrorMessage(err?.response?.data?.message || "Không thể cập nhật trạng thái thanh toán.");
+        }
+    }
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -170,7 +203,7 @@ export function AdminOrdersPage() {
                 <div className="flex flex-wrap gap-4 items-center justify-between border-t pt-3">
                     <div className="flex flex-wrap gap-2 items-center">
                         <span className="text-sm font-medium text-muted-foreground mr-2">Trạng thái đơn:</span>
-                        {["all", "confirmed", "cancelled"].map((st) => (
+                        {["all", "pending", "confirmed", "shipping", "completed", "cancelled"].map((st) => (
                             <Button
                                 key={st}
                                 type="button"
@@ -179,7 +212,11 @@ export function AdminOrdersPage() {
                                 size="sm"
                                 onClick={() => { setStatusFilter(st); setPageNumber(1); }}
                             >
-                                {st === "all" ? "Tất cả" : st === "confirmed" ? "Đã xác nhận" : "Hủy đơn"}
+                                {st === "all" ? "Tất cả" :
+                                 st === "pending" ? "Chờ xử lý" :
+                                 st === "confirmed" ? "Đã xác nhận" :
+                                 st === "shipping" ? "Đang giao" :
+                                 st === "completed" ? "Hoàn thành" : "Đã hủy"}
                             </Button>
                         ))}
                     </div>
@@ -248,9 +285,36 @@ export function AdminOrdersPage() {
                         <div className="flex justify-between items-start border-b pb-4">
                             <div>
                                 <h2 className="text-xl font-bold">Chi tiết đơn hàng #{selectedOrderDetail.orderCode}</h2>
-                                <div className="flex gap-2 mt-2">
-                                    <OrderStatusBadge status={selectedOrderDetail.status} />
-                                    <PaymentStatusBadge status={selectedOrderDetail.paymentStatus} />
+                                <div className="flex flex-wrap items-center gap-3 mt-3">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-semibold text-slate-500">Trạng thái đơn:</span>
+                                        <select
+                                            value={selectedOrderDetail.status.toLowerCase()}
+                                            onChange={(e) => handleUpdateStatus(e.target.value)}
+                                            disabled={selectedOrderDetail.status.toLowerCase() === "cancelled" || selectedOrderDetail.status.toLowerCase() === "completed"}
+                                            className="text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1 bg-white text-slate-700 focus:outline-none focus:border-emerald-500 disabled:bg-slate-100 cursor-pointer"
+                                        >
+                                            <option value="pending">Chờ xử lý</option>
+                                            <option value="confirmed">Đã xác nhận</option>
+                                            <option value="shipping">Đang giao hàng</option>
+                                            <option value="completed">Hoàn thành</option>
+                                            <option value="cancelled">Hủy đơn</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-semibold text-slate-500">Thanh toán:</span>
+                                        <select
+                                            value={selectedOrderDetail.paymentStatus.toLowerCase()}
+                                            onChange={(e) => handleUpdatePayment(e.target.value)}
+                                            disabled={selectedOrderDetail.status.toLowerCase() === "cancelled"}
+                                            className="text-xs font-medium border border-slate-200 rounded-lg px-2.5 py-1 bg-white text-slate-700 focus:outline-none focus:border-emerald-500 disabled:bg-slate-100 cursor-pointer"
+                                        >
+                                            <option value="unpaid">Chưa thanh toán</option>
+                                            <option value="paid">Đã thanh toán</option>
+                                            <option value="refunded">Đã hoàn tiền</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
                             <Button variant="ghost" size="sm" onClick={() => setSelectedOrderDetail(null)}>
@@ -329,7 +393,7 @@ export function AdminOrdersPage() {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {selectedOrderDetail.items.map((item, index) => (
+                                        {(selectedOrderDetail.items || []).map((item, index) => (
                                             <tr key={index}>
                                                 <td className="p-3 font-medium">{item.sku}</td>
                                                 <td className="p-3">{item.productName}</td>

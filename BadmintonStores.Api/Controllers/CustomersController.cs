@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace BadmintonStores.Api.Controllers;
 
-[Authorize(Roles = RoleNames.AdminOrStaff)]
 [ApiController]
 [Route("api/[controller]")]
 
@@ -21,6 +20,7 @@ public class CustomersController : ControllerBase
         _customerService = customerService;
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpPost]
     public async Task<IActionResult> CreateCustomer([FromBody] CreateCustomerRequest request, CancellationToken cancellationToken)
     {
@@ -48,6 +48,7 @@ public class CustomersController : ControllerBase
         return Ok(ApiResponse<CreateCustomerResponse>.Ok(response, "Tạo khách hàng thành công"));
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpGet("{customerId:int}")]
     public async Task<IActionResult> GetCustomer(int customerId, CancellationToken cancellationToken)
     {
@@ -59,8 +60,14 @@ public class CustomersController : ControllerBase
             UserId = result.UserId,
             CustomerCode = result.CustomerCode,
             FullName = result.FullName,
+            Email = result.Email,
+            Phone = result.Phone,
+            UserStatus = result.UserStatus,
             Gender = result.Gender,
             DateOfBirth = result.DateOfBirth,
+            TotalOrders = result.TotalOrders,
+            TotalSpent = result.TotalSpent,
+            LastOrderDate = result.LastOrderDate,
             CreatedAt = result.CreatedAt,
             UpdatedAt = result.UpdatedAt
         };
@@ -92,8 +99,14 @@ public class CustomersController : ControllerBase
                 UserId = c.UserId,
                 CustomerCode = c.CustomerCode,
                 FullName = c.FullName,
+                Email = c.Email,
+                Phone = c.Phone,
+                UserStatus = c.UserStatus,
                 Gender = c.Gender,
                 DateOfBirth = c.DateOfBirth,
+                TotalOrders = c.TotalOrders,
+                TotalSpent = c.TotalSpent,
+                LastOrderDate = c.LastOrderDate,
                 CreatedAt = c.CreatedAt,
                 UpdatedAt = c.UpdatedAt
             }).ToList(),
@@ -101,6 +114,16 @@ public class CustomersController : ControllerBase
         return Ok(ApiResponse<GetCustomersResponse>.Ok(response, "Lấy danh sách khách hàng thành công"));
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
+    [HttpPatch("{customerId:int}/toggle-status")]
+    public async Task<IActionResult> ToggleCustomerStatus([FromRoute] int customerId, CancellationToken cancellationToken)
+    {
+        var isActive = await _customerService.ToggleCustomerStatusAsync(customerId, cancellationToken);
+        var message = isActive ? "Khóa tài khoản đã mở thành công" : "Đã khóa tài khoản khách hàng";
+        return Ok(ApiResponse<bool>.Ok(isActive, message));
+    }
+
+    [Authorize]
     [HttpPatch("{customerId:int}")]
     public async Task<IActionResult> UpdateCustomer([FromRoute]int customerId, [FromBody] UpdateCustomerRequest request, CancellationToken cancellationToken)
     {

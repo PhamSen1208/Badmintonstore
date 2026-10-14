@@ -10,6 +10,7 @@ public class CreateOrderRequest
     public decimal ShippingFee {get; set;}
     public decimal TaxRate {get; set;}
     public string? Note {get; set;}
+    public string? CouponCode {get; set;}
 
     public List<CreateOrderItemRequest> Items {get; set;} = new();
     public CreatePaymentRequest? Payment {get; set;}

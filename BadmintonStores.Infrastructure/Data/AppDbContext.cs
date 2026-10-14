@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using BadmintonStores.Domain.Entities;
+using System.Security.Cryptography.X509Certificates;
 
 namespace BadmintonStores.Infrastructure.Data;
 
@@ -25,6 +26,10 @@ public class AppDbContext  : DbContext
     public DbSet<Category> Categories => Set<Category>();
     public DbSet<ProductImage> ProductImages => Set<ProductImage>();
     public DbSet<CustomerAddress> CustomerAddresses => Set<CustomerAddress>();
+    public DbSet<WishList> WishLists => Set<WishList>();
+    public DbSet<ProductReview> ProductReviews => Set<ProductReview>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<CouponHistory> CouponHistories => Set<CouponHistory>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

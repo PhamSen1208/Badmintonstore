@@ -10,6 +10,7 @@ public class CreateOrderDto
     public decimal ShippingFee { get; set; }
     public decimal TaxRate { get; set; }
     public string? Note { get; set; }
+    public string? CouponCode { get; set; }
     public List<CreateOrderItemDto> Items { get; set; } = new();
     public CreatePaymentDto? Payment { get; set; }
 }

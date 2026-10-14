@@ -3,6 +3,7 @@ import { setAccessToken } from "@/lib/api";
 import type { AuthResponse, AuthUser, LoginRequest, RegisterRequest } from "../types/auth.types";
 import {
     login as loginApi,
+    googleLogin as googleLoginApi,
     logout as logoutApi,
     refreshToken,
     register as registerApi
@@ -15,8 +16,10 @@ type AuthContextValue = {
     isAuthenticated: boolean;
     isBootstrapping: boolean;
     login: (request: LoginRequest) => Promise<AuthResponse>;
+    loginWithGoogle: (idToken: string) => Promise<AuthResponse>;
     logout: () => Promise<void>;
     register: (request: RegisterRequest) => Promise<AuthResponse>;
+    updateUser: (updatedFields: Partial<AuthUser>) => void;
 }
 
 // Tạo Context và export
@@ -25,7 +28,6 @@ export const AuthContext = createContext<AuthContextValue | null>(null)
 type AuthProviderProps = {
     children: ReactNode;
 }
-
 
 export function AuthProvider({children}: AuthProviderProps)
 {
@@ -70,35 +72,52 @@ export function AuthProvider({children}: AuthProviderProps)
         return result
     }
 
+    async function loginWithGoogle(idToken: string) {
+        const result = await googleLoginApi(idToken);
+        applyAuth(result);
+        return result;
+    }
+
     //Hàm đăng ký
     async function register(request: RegisterRequest) {
         const result = await registerApi(request)
         applyAuth(result)
         return result
     }
-  //Hàm đăng xuất
-  async function logout() {
-    try {
-      await logoutApi()
-    } finally {
-      clearAuth()
+
+    //Hàm đăng xuất
+    async function logout() {
+        try {
+            await logoutApi()
+        } finally {
+            clearAuth()
+        }
     }
-  }
 
-  //Tạo context value
-  const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      accessToken: accessTokenValue,
-      isAuthenticated: !!user && !!accessTokenValue,
-      isBootstrapping,
-      login,
-      register,
-      logout,
-    }),
-    [user, accessTokenValue, isBootstrapping],
-  )
+    const updateUser = (updatedFields: Partial<AuthUser>) => {
+        setUser((prevUser) => {
+            if (!prevUser) return null;
+            const updated = { ...prevUser, ...updatedFields };
+            localStorage.setItem("auth_user", JSON.stringify(updated)); 
+            return updated;
+        });
+    }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+    //Tạo context value
+    const value = useMemo<AuthContextValue>(
+        () => ({
+            user,
+            accessToken: accessTokenValue,
+            isAuthenticated: !!user && !!accessTokenValue,
+            isBootstrapping,
+            login,
+            loginWithGoogle,
+            register,
+            logout,
+            updateUser,
+        }),
+        [user, accessTokenValue, isBootstrapping],
+    )
+
+    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
-

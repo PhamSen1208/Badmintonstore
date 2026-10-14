@@ -30,3 +30,8 @@ export async function updateCustomer(
     const res = await api.patch<ApiResponse<CustomerListItem>>(`/api/customers/${customerId}`, data);
     return res.data.data;
 }
+
+export async function toggleCustomerStatus(customerId: number): Promise<boolean> {
+    const res = await api.patch<ApiResponse<boolean>>(`/api/customers/${customerId}/toggle-status`);
+    return res.data.data;
+}

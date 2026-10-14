@@ -2,6 +2,9 @@ namespace BadmintonStores.Domain.Enums;
 
 public enum OrderStatus
 {
-    Confirmed = 1,
-    Cancelled = 0,
+    Pending = 0,    // Đang chờ xử lý (Mới tạo đơn)
+    Confirmed = 1,  // Đã xác nhận đơn hàng
+    Shipping = 2,   // Đang giao hàng
+    Completed = 3,  // Đã hoàn thành (Giao thành công)
+    Cancelled = 4   // Đã hủy đơn hàng
 }

@@ -9,5 +9,7 @@ public interface IOrderService
     Task<GetOrdersResult> GetOrdersAsync(GetOrdersQuery query, CancellationToken cancellationToken = default);
     Task<CancelOrderResult> CancelOrderResultAsync(int orderId, CancellationToken cancellationToken = default); 
     Task<UpdateOrderNoteResult> UpdateOrderNoteAsync(UpdateOrderNoteDto request, CancellationToken cancellationToken = default);
+    Task<UpdateOrderStatusResult> UpdateOrderStatusAsync(int orderId, string status, CancellationToken cancellationToken = default);
+    Task<UpdatePaymentStatusResult> UpdatePaymentStatusAsync(int orderId, string paymentStatus, CancellationToken cancellationToken = default);
 
 }

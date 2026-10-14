@@ -72,11 +72,17 @@ public class CustomerService : ICustomerService
             throw new ValidationException("CUSTOMER_ID_INVALID", "Mã khách hàng không hợp lệ");
         }
 
-        var customer = await _dbContext.Customers.FirstOrDefaultAsync(c => c.Id == customerId, cancellationToken);
+        var customer = await _dbContext.Customers
+            .Include(c => c.User)
+            .Include(c => c.Orders)
+            .FirstOrDefaultAsync(c => c.Id == customerId, cancellationToken);
+
         if(customer == null)
         {
             throw new NotFoundException("CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng");
         }
+
+        var validOrders = customer.Orders.Where(o => o.Status != OrderStatus.Cancelled).ToList();
 
         return new GetCustomerDetailResult
         {
@@ -84,8 +90,14 @@ public class CustomerService : ICustomerService
             UserId = customer.UserId,
             CustomerCode = customer.CustomerCode,
             FullName = customer.FullName,
+            Email = customer.User?.Email ?? string.Empty,
+            Phone = customer.User?.Phone,
+            UserStatus = customer.User?.Status.ToString() ?? "Active",
             DateOfBirth = customer.DateOfBirth,
             Gender = customer.Gender.ToString().ToLowerInvariant(),
+            TotalOrders = customer.Orders.Count,
+            TotalSpent = validOrders.Sum(o => o.TotalAmount),
+            LastOrderDate = customer.Orders.OrderByDescending(o => o.CreatedAt).Select(o => (DateTime?)o.CreatedAt).FirstOrDefault(),
             CreatedAt = customer.CreatedAt,
             UpdatedAt = customer.UpdatedAt
         };
@@ -93,21 +105,28 @@ public class CustomerService : ICustomerService
 
     public async Task<GetCustomersResult> GetCustomersAsync(GetCustomersQuery request, CancellationToken cancellationToken = default)
     {
-
         var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
         var pageSize = request.PageSize <= 0 ? 20 : request.PageSize;
-        pageSize = pageSize > 100 ? 100 : pageSize; // Giới hạn tối đa page size là 100
+        pageSize = pageSize > 100 ? 100 : pageSize;
 
-        var customersQuery = _dbContext.Customers.AsQueryable();
+        var customersQuery = _dbContext.Customers
+            .Include(c => c.User)
+            .Include(c => c.Orders)
+            .AsQueryable();
 
         if(!string.IsNullOrWhiteSpace(request.Keyword))
         {
             var keyword = request.Keyword.Trim().ToLower();
-            customersQuery = customersQuery.Where(c => c.CustomerCode.ToLower().Contains(keyword) || c.FullName.ToLower().Contains(keyword));
+            customersQuery = customersQuery.Where(c => 
+                c.CustomerCode.ToLower().Contains(keyword) || 
+                c.FullName.ToLower().Contains(keyword) ||
+                (c.User != null && c.User.Email.ToLower().Contains(keyword)) ||
+                (c.User != null && c.User.Phone != null && c.User.Phone.ToLower().Contains(keyword)));
         }
 
         var totalItems = await customersQuery.CountAsync(cancellationToken);
         var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+        pageNumber = Math.Max(1, Math.Min(pageNumber, Math.Max(1, totalPages)));
 
         var items = await customersQuery
             .OrderByDescending(c => c.CreatedAt)
@@ -119,8 +138,14 @@ public class CustomerService : ICustomerService
                 UserId = c.UserId,
                 CustomerCode = c.CustomerCode,
                 FullName = c.FullName,
+                Email = c.User != null ? c.User.Email : string.Empty,
+                Phone = c.User != null ? c.User.Phone : null,
+                UserStatus = c.User != null ? c.User.Status.ToString() : "Active",
                 DateOfBirth = c.DateOfBirth,
                 Gender = c.Gender.ToString().ToLowerInvariant(),
+                TotalOrders = c.Orders.Count,
+                TotalSpent = c.Orders.Where(o => o.Status != OrderStatus.Cancelled).Sum(o => o.TotalAmount),
+                LastOrderDate = c.Orders.OrderByDescending(o => o.CreatedAt).Select(o => (DateTime?)o.CreatedAt).FirstOrDefault(),
                 CreatedAt = c.CreatedAt,
                 UpdatedAt = c.UpdatedAt
             }).ToListAsync(cancellationToken);
@@ -133,6 +158,24 @@ public class CustomerService : ICustomerService
             TotalItems = totalItems,
             TotalPages = totalPages
         };
+    }
+
+    public async Task<bool> ToggleCustomerStatusAsync(int customerId, CancellationToken cancellationToken = default)
+    {
+        var customer = await _dbContext.Customers
+            .Include(c => c.User)
+            .FirstOrDefaultAsync(c => c.Id == customerId, cancellationToken);
+
+        if (customer == null || customer.User == null)
+        {
+            throw new NotFoundException("CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng");
+        }
+
+        customer.User.Status = customer.User.Status == UserStatus.Active ? UserStatus.Locked : UserStatus.Active;
+        customer.User.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return customer.User.Status == UserStatus.Active;
     }
 
     public async Task<UpdateCustomerResult> UpdateCustomerAsync(UpdateCustomerDto request, CancellationToken cancellationToken = default)
@@ -154,7 +197,11 @@ public class CustomerService : ICustomerService
             throw new ValidationException("GENDER_REQUIRED", "Giới tính là bắt buộc");
         }
 
-        var customer = await _dbContext.Customers.FirstOrDefaultAsync(c => c.Id == request.CustomerId, cancellationToken);
+        var customer = await _dbContext.Customers
+            .Include(c => c.User)
+            .Include(c => c.Orders)
+            .FirstOrDefaultAsync(c => c.Id == request.CustomerId, cancellationToken);
+
         if(customer == null)
         {
             throw new NotFoundException("CUSTOMER_NOT_FOUND", "Không tìm thấy khách hàng");

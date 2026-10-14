@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "BadmintonStores.Domain/1.0.0": {
+        "runtime": {
+          "BadmintonStores.Domain.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "BadmintonStores.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

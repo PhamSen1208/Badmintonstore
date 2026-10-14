@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { Filter, RotateCcw, ChevronRight, SlidersHorizontal } from "lucide-react";
+import { Filter, RotateCcw, ChevronRight, SlidersHorizontal, Heart } from "lucide-react";
 import { SkeletonProductGrid } from "@/features/client/components/SkeletonProductCard";
+import { useWishlist } from "@/features/client/context/WishlistContext";
 import { getCategories } from "@/features/admin/categories/services/admin-categories.service";
 import { getBrands } from "@/features/admin/brands/services/admin-brands.service";
 import { getProducts } from "@/features/admin/products/services/admin-product.service";
@@ -13,6 +14,7 @@ import { currencyFormatter } from "@/lib/formatters";
 export function ProductsPage()
 {
     const [searchParams, setSearchParams] = useSearchParams();
+    const { isFavorite, toggleFavorite } = useWishlist();
 
     //Lấy url query params từ megamenu
     const urlCatId = searchParams.get("categoryId");
@@ -49,10 +51,11 @@ export function ProductsPage()
                     getCategories(),
                     getBrands()
                 ]);
-                setCategories(catsData);
-                setBrands(brandsData);
+                setCategories(Array.isArray(catsData) ? catsData : []);
+                setBrands(Array.isArray(brandsData) ? brandsData : []);
             } catch {
-                // Fallback nếu lỗi
+                setCategories([]);
+                setBrands([]);
             }
         }
         loadFilterDropdowns();
@@ -68,8 +71,8 @@ export function ProductsPage()
                     pageNumber,
                     pageSize,
                 });
-                setProducts(result.items);
-                setTotalPages(result.totalPages);
+                setProducts(Array.isArray(result?.items) ? result.items : []);
+                setTotalPages(result?.totalPages || 1);
             } catch {
                 setProducts([]);
             } finally {
@@ -284,6 +287,17 @@ export function ProductsPage()
                                                         {prod.brandName}
                                                     </span>
                                                 )}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.preventDefault();
+                                                        toggleFavorite(prod.productId);
+                                                    }}
+                                                    title={isFavorite(prod.productId) ? "Bỏ thích" : "Thêm vào yêu thích"}
+                                                    className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors z-10"
+                                                >
+                                                    <Heart className={`h-4 w-4 ${isFavorite(prod.productId) ? "fill-red-500 text-red-500" : ""}`} />
+                                                </button>
                                             </div>
                                             <div>
                                                 <span className="text-[11px] font-semibold text-orange-500 uppercase tracking-wider">

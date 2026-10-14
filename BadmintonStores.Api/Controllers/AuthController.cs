@@ -79,6 +79,22 @@ public class AuthController : ControllerBase
     }
 
     [AllowAnonymous]
+    [HttpPost("google-login")]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> GoogleLogin(GoogleLoginRequest request, CancellationToken cancellationToken)
+    {
+        var dto = new GoogleLoginDto
+        {
+            IdToken = request.IdToken
+        };
+
+        var result = await _authService.GoogleLoginAsync(dto, GetIpAddress(), cancellationToken);
+        var response = MapToAuthResponse(result);
+        SetRefreshTokenCookie(result.RefreshToken, result.RefreshTokenExpiresAt);
+
+        return Ok(ApiResponse<AuthResponse>.Ok(response, "Đăng nhập Google thành công"));
+    }
+
+    [AllowAnonymous]
     [HttpPost("refresh")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> RefreshToken(CancellationToken cancellationToken)
     {
@@ -130,6 +146,27 @@ public class AuthController : ControllerBase
         return Ok(ApiResponse<CurrentUserResponse>.Ok(response, "Lấy thông tin người dùng thành công "));
     }
 
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<ActionResult<ApiResponse<object>>> ChangePassword(ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var dto = new ChangePasswordDto
+        {
+            CurrentPassword = request.CurrentPassword,
+            NewPassword = request.NewPassword,
+            ConfirmNewPassword = request.ConfirmNewPassword
+        };
+
+        await _authService.ChangePasswordAsync(userId, dto, cancellationToken);
+        return Ok(ApiResponse<object>.Ok(new { }, "Đổi mật khẩu thành công"));
+    }
+
     //Helper methods
     private string? GetIpAddress()
     {
@@ -165,4 +202,6 @@ public class AuthController : ControllerBase
             }
         );
     }
+
+
 }

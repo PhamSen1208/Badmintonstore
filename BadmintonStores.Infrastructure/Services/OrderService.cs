@@ -10,10 +10,12 @@ namespace BadmintonStores.Infrastructure.Services;
 public class OrderService : IOrderService
 {
     private readonly AppDbContext _dbContext;
+    private readonly ICouponService _couponService;
 
-    public OrderService(AppDbContext dbContext)
+    public OrderService(AppDbContext dbContext, ICouponService couponService)
     {
         _dbContext = dbContext;
+        _couponService = couponService;
     }
 
     public async Task<CreateOrderResult> CreateOrderAsync(CreateOrderDto request, CancellationToken cancellationToken = default)
@@ -101,7 +103,25 @@ public class OrderService : IOrderService
             return unitPrice * item.Quantity;
         });
 
-        decimal discountAmount = 0; //Tạm để
+        decimal discountAmount = 0;
+        int? usedCouponId = null;
+
+        if (!string.IsNullOrWhiteSpace(request.CouponCode))
+        {
+            var couponValidation = await _couponService.ValidateAndCalculateCouponAsync(new BadmintonStores.Application.DTOs.Coupons.ValidateCouponRequestDto
+            {
+                CouponCode = request.CouponCode,
+                OrderSubtotal = subTotal,
+                CustomerId = request.CustomerId
+            }, cancellationToken);
+
+            if (couponValidation.IsValid)
+            {
+                discountAmount = couponValidation.DiscountAmount;
+                usedCouponId = couponValidation.CouponId;
+            }
+        }
+
         decimal shippingFee = request.ShippingFee >= 0 ? request.ShippingFee : 0;
         decimal taxRate = request.TaxRate > 0 ? request.TaxRate : 0.08m; // Mặc định 8% VAT nếu không chỉ định
         decimal taxAmount = Math.Round((subTotal - discountAmount) * taxRate, 2);
@@ -219,6 +239,18 @@ public class OrderService : IOrderService
                 PaymentStatus = PaymentStatus.Paid.ToString().ToLowerInvariant(),
                 Amount = totalAmount
             };
+        }
+
+        if (usedCouponId.HasValue)
+        {
+            await _couponService.RecordCouponUsageAsync(
+                usedCouponId.Value,
+                request.CustomerId,
+                order.Id,
+                subTotal,
+                discountAmount,
+                cancellationToken
+            );
         }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -437,7 +469,98 @@ public class OrderService : IOrderService
             Status = order.Status.ToString().ToLowerInvariant()
         };
     }
+    public async Task<UpdateOrderStatusResult> UpdateOrderStatusAsync(int orderId, string status, CancellationToken cancellationToken = default)
+    {
+        if(orderId <= 0)
+        {
+            throw new ValidationException("INVALID_ORDER_ID", "OrderId không hợp lệ");
+        }
 
+        var newStatus = ParseOrderStatus(status);
+        var order = await _dbContext.Orders
+            .Include(o => o.OrderDetails)
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+
+        if(order == null)
+        {
+            throw new NotFoundException("ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng với Id = {orderId}");
+        }
+
+        if(order.Status == OrderStatus.Completed)
+        {
+            throw new ValidationException("ORDER_ALREADY_COMPLETED", "Đơn hàng đã được hoàn thành trước đó");
+        }
+
+        if(order.Status == OrderStatus.Cancelled)
+        {
+            throw new ValidationException("ORDER_ALREADY_CANCELLED", "Đơn hàng đã được hủy trước đó");
+        }
+
+        if(order.Status == OrderStatus.Shipping && newStatus != OrderStatus.Completed)
+        {
+            throw new ValidationException("INVALID_STATUS_TRANSITION", $"Không thể chuyển đơn hàng từ trạng thái {order.Status} sang {newStatus}");
+        }
+        //Nếu admin -> hủy đơn -> gọi lại logic tồn kho
+        if(newStatus == OrderStatus.Cancelled)
+        {
+            var cancelResult = await CancelOrderResultAsync(orderId, cancellationToken);
+
+            return new UpdateOrderStatusResult
+            {
+                OrderId = cancelResult.OrderId,
+                OrderCode = cancelResult.OrderCode,
+                Status = cancelResult.Status
+            };
+        }
+        //Cập nhật lại trạng thái đơn hàng
+        order.Status = newStatus;
+
+        //Nếu đơn hàng thành công, mà đơn chưa thanh toán -> tự động chuyển về đã thanh toán
+        if(newStatus == OrderStatus.Completed && order.PaymentStatus == PaymentStatus.Unpaid)
+        {
+            order.PaymentStatus = PaymentStatus.Paid;
+        }
+
+        order.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new UpdateOrderStatusResult
+        {
+            OrderId = order.Id,
+            OrderCode = order.OrderCode,
+            Status = order.Status.ToString().ToLowerInvariant()
+        };       
+    }
+
+    public async Task<UpdatePaymentStatusResult> UpdatePaymentStatusAsync(int orderId, string paymentStatus, CancellationToken cancellationToken = default)
+    {
+        if(orderId <= 0)
+        {
+            throw new ValidationException("INVALID_ORDER_ID", "OrderId không hợp lệ");
+        }
+
+        var newPaymentStatus = ParsePaymentStatus(paymentStatus);
+
+        var order = await _dbContext.Orders
+            .Include(o => o.OrderDetails)
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+
+        if(order == null)
+        {
+            throw new NotFoundException("ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng với Id = {orderId}");
+        }
+
+        order.PaymentStatus = newPaymentStatus;
+        order.UpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new UpdatePaymentStatusResult
+        {
+            OrderId = order.Id,
+            OrderCode = order.OrderCode,
+            PaymentStatus = order.PaymentStatus.ToString().ToLowerInvariant()
+        };
+    }
     public async Task<UpdateOrderNoteResult> UpdateOrderNoteAsync(UpdateOrderNoteDto request, CancellationToken cancellationToken = default)
     {
         if(request.OrderId <= 0)
@@ -470,7 +593,7 @@ public class OrderService : IOrderService
 
     private static void ValidateRequest(CreateOrderDto request)
     {
-        if(request.CustomerId <= 0) 
+        if(request.CustomerId <= 0)
         {
             throw new ValidationException("INVALID_CUSTOMER_ID", "CustomerId không hợp lệ");
         }
@@ -530,7 +653,10 @@ public class OrderService : IOrderService
     {
         return status.Trim().ToLower() switch
         {
+            "pending" => OrderStatus.Pending,
             "confirmed" => OrderStatus.Confirmed,
+            "shipping" => OrderStatus.Shipping,
+            "completed" => OrderStatus.Completed,
             "cancelled" => OrderStatus.Cancelled,
             _ => throw new ValidationException("INVALID_ORDER_STATUS", $"Trạng thái đơn hàng '{status}' không hợp lệ")
         };

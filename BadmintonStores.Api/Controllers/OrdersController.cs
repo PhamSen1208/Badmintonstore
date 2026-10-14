@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace BadmintonStores.Api.Controllers;
 
-[Authorize(Roles = RoleNames.AdminOrStaff)]
+[Authorize]
 [ApiController]
 [Route("api/[controller]")]
 
@@ -22,6 +22,7 @@ public class OrdersController : ControllerBase
         _orderService = orderService;
     }
 
+    [AllowAnonymous]
     [HttpPost]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken cancellationToken)
     {
@@ -36,6 +37,7 @@ public class OrdersController : ControllerBase
             ShippingFee = request.ShippingFee,
             TaxRate = request.TaxRate,
             Note = request.Note,
+            CouponCode = request.CouponCode,
             Items = request.Items.Select(i => new CreateOrderItemDto
             {
                 ProductVariantId = i.ProductVariantId,
@@ -78,6 +80,7 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<CreateOrderResponse>.Ok(response, "Tạo đơn hàng thành công"));
     }
 
+    [Authorize]
     [HttpGet("{orderId:int}")]
     public async Task<IActionResult> GetOrderDetail(int orderId, CancellationToken cancellationToken)
     {
@@ -118,7 +121,8 @@ public class OrdersController : ControllerBase
         };
         return Ok(ApiResponse<GetOrderDetailResponse>.Ok(response, "Lấy thông tin đơn hàng thành công"));
     }
-
+    
+    [Authorize]
     [HttpGet]
     public async Task<IActionResult> GetOrders([FromQuery] GetOrdersRequest request, CancellationToken cancellationToken)
     {
@@ -155,6 +159,7 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<GetOrdersResponse>.Ok(response, "Lấy danh sách đơn hàng thành công"));
     }
 
+    [Authorize]
     [HttpPatch("{orderId:int}/cancel")]
     public async Task<IActionResult> CancelOrder(int orderId, CancellationToken cancellationToken)
     {
@@ -168,6 +173,7 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<CancelOrderResponse>.Ok(response, "Hủy đơn hàng thành công"));
     }
 
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpPatch("{orderId:int}/note")]
     public async Task<IActionResult> UpdateOrderNote(int orderId, [FromBody] UpdateOrderNoteRequest request, CancellationToken cancellationToken)
     {
@@ -184,6 +190,22 @@ public class OrdersController : ControllerBase
             Note = result.Note
         };
         return Ok(ApiResponse<UpdateOrderNoteResponse>.Ok(response, "Cập nhật ghi chú đơn hàng thành công"));
+    }
+
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
+    [HttpPatch("{orderId:int}/status")]
+    public async Task<IActionResult> UpdateOrderStatus(int orderId, [FromBody] UpdateOrderStatusRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _orderService.UpdateOrderStatusAsync(orderId, request.Status, cancellationToken);
+        return Ok(ApiResponse<UpdateOrderStatusResult>.Ok(result, "Cập nhật trạng thái đơn hàng thành công"));
+    }
+
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
+    [HttpPatch("{orderId:int}/payment-status")]
+    public async Task<IActionResult> UpdatePaymentStatus(int orderId, [FromBody] UpdatePaymentStatusRequest request, CancellationToken cancellationToken)
+    {
+        var result = await _orderService.UpdatePaymentStatusAsync(orderId, request.PaymentStatus, cancellationToken);
+        return Ok(ApiResponse<UpdatePaymentStatusResult>.Ok(result, "Cập nhật trạng thái thanh toán đơn hàng thành công"));
     }
 }
 
