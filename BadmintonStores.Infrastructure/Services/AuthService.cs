@@ -280,7 +280,7 @@ public class AuthService : IAuthService
         }
 
         ValidatePassword(dto.NewPassword);
-        if(dto.NewPassword != dto.CurrentPassword)
+        if(dto.NewPassword != dto.ConfirmNewPassword)
         {
             throw new ValidationException("PASSWORDS_MISMATCH", "Mật khẩu mới và mật khẩu xác nhận không khớp");
         }

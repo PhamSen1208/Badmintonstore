@@ -120,7 +120,7 @@ export function CheckoutPage() {
                 couponCode: appliedCouponCode || undefined,
                 note: formData.note || "Không có ghi chú",
                 items: items.map(item => ({
-                    productVariantId: item.productId,
+                    productVariantId: item.productVariantId,   
                     quantity: item.quantity,
                     unitPrice: item.basePrice
                 })),

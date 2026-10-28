@@ -33,3 +33,7 @@ dist/
 dist-ssr/
 *.local
 .env
+
+#images
+**/wwwroot/uploads/**
+!**/wwwroot/uploads/.gitkeep

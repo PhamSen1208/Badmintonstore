@@ -39,7 +39,7 @@ export function CartPage() {
                 <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                     <div className="divide-y divide-slate-100">
                         {items.map((item) => (
-                            <div key={`${item.productId}-${item.selectedVariant}`} className="py-4 flex gap-4 items-center">
+                            <div key={`${item.productVariantId}`} className="py-4 flex gap-4 items-center">
                                 {/* Ảnh sản phẩm */}
                                 <div className="h-20 w-20 rounded-xl bg-slate-100 p-2 shrink-0 flex items-center justify-center">
                                     {item.image ? (
@@ -56,7 +56,7 @@ export function CartPage() {
                                     </h3>
                                     {item.selectedVariant && (
                                         <span className="text-xs text-orange-600 font-semibold block">
-                                            Trọng lượng: {item.selectedVariant}
+                                            Phân loại: {item.selectedVariant}
                                         </span>
                                     )}
                                     <span className="font-semibold text-slate-900 text-sm block">
@@ -68,7 +68,7 @@ export function CartPage() {
                                 <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1">
                                     <button
                                         type="button"
-                                        onClick={() => updateQuantity(item.productId, item.quantity - 1, item.selectedVariant)}
+                                        onClick={() => updateQuantity(item.productVariantId, item.quantity - 1)}
                                         className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 text-slate-600"
                                     >
                                         <Minus className="h-3.5 w-3.5" />
@@ -78,7 +78,7 @@ export function CartPage() {
                                     </span>
                                     <button
                                         type="button"
-                                        onClick={() => updateQuantity(item.productId, item.quantity + 1, item.selectedVariant)}
+                                        onClick={() => updateQuantity(item.productVariantId, item.quantity + 1)}
                                         className="h-7 w-7 rounded-lg flex items-center justify-center hover:bg-slate-100 text-slate-600"
                                     >
                                         <Plus className="h-3.5 w-3.5" />
@@ -92,7 +92,7 @@ export function CartPage() {
                                     </span>
                                     <button
                                         type="button"
-                                        onClick={() => removeFromCart(item.productId, item.selectedVariant)}
+                                        onClick={() => removeFromCart(item.productVariantId)} 
                                         className="text-xs text-slate-400 hover:text-red-500 transition-colors p-1"
                                         title="Xóa"
                                     >

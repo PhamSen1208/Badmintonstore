@@ -214,6 +214,11 @@ public class ProductService : IProductService
                 CategoryName = p.Category != null ? p.Category.Name : null,
                 BrandId = p.BrandId,
                 BrandName = p.Brand != null ? p.Brand.Name : null,
+                ImageUrl = p.Images
+                    .OrderByDescending(img => img.IsPrimary)
+                    .ThenBy(img => img.DisplayOrder)
+                    .Select(img => img.ImageUrl)
+                    .FirstOrDefault(),
                 CreatedAt = p.CreatedAt,
                 UpdatedAt = p.UpdatedAt
             }).ToListAsync(cancellationToken);

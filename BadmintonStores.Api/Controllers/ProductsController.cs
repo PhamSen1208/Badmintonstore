@@ -157,6 +157,7 @@ public class ProductsController : ControllerBase
                 CategoryName = o.CategoryName,
                 BrandId = o.BrandId,
                 BrandName = o.BrandName,
+                ImageUrl = o.ImageUrl,
                 CreatedAt = o.CreatedAt,
                 UpdatedAt = o.UpdatedAt,
             }).ToList()

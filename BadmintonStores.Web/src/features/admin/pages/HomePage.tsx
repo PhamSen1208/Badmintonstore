@@ -16,6 +16,8 @@ export function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const { isFavorite, toggleFavorite } = useWishlist();
 
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
+
   useEffect(() => {
     async function loadFeaturedProducts() {
       try {
@@ -253,26 +255,40 @@ export function HomePage() {
                 <div className="space-y-3">
                   {/* Khung ảnh sản phẩm */}
                   <div className="aspect-square w-full rounded-xl bg-slate-100 overflow-hidden relative flex items-center justify-center">
-                    <span className="text-4xl opacity-40 group-hover:scale-110 transition-transform">🏸</span>
-                    {product.brandName && (
-                      <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-slate-100">
-                        {product.brandName}
-                      </span>
+                    {/* 1. Ảnh sản phẩm */}
+                    {product.imageUrl ? (
+                        <img
+                            src={product.imageUrl.startsWith("http") ? product.imageUrl : `${API_BASE_URL}${product.imageUrl}`}
+                            alt={product.productName}
+                            className="h-full w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                                (e.target as HTMLElement).style.display = "none";
+                            }}
+                        />
+                    ) : (
+                        <span className="text-4xl opacity-40 group-hover:scale-110 transition-transform">🏸</span>
                     )}
 
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        toggleFavorite(product.productId);
-                      }}
-                      title={isFavorite(product.productId) ? "Bỏ thích" : "Thêm vào yêu thích"}
-                      className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors z-10"
-                    >
-                      <Heart className={`h-4 w-4 ${isFavorite(product.productId) ? "fill-red-500 text-red-500" : ""}`} />
-                    </button>
-                  </div>
+                    {/* 2. Nhãn thương hiệu */}
+                    {product.brandName && (
+                        <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-slate-100 z-10">
+                            {product.brandName}
+                        </span>
+                    )}
 
+                    {/* 3. Nút Trái tim Yêu thích (Wishlist) */}
+                    <button
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            toggleFavorite(product.productId);
+                        }}
+                        title={isFavorite(product.productId) ? "Bỏ thích" : "Thêm vào yêu thích"}
+                        className="absolute top-2 right-2 h-8 w-8 rounded-full bg-white/90 shadow-sm flex items-center justify-center text-slate-400 hover:text-red-500 transition-colors z-10"
+                    >
+                        <Heart className={`h-4 w-4 ${isFavorite(product.productId) ? "fill-red-500 text-red-500" : ""}`} />
+                    </button>
+                </div> 
                   <div>
                     <span className="text-[11px] font-semibold text-orange-500 uppercase tracking-wider">
                       {product.categoryName || "Cầu lông"}

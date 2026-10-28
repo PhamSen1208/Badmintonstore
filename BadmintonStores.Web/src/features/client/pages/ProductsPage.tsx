@@ -19,6 +19,8 @@ export function ProductsPage()
     //Lấy url query params từ megamenu
     const urlCatId = searchParams.get("categoryId");
     const urlBrandId = searchParams.get("brandId");
+
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 // 1. STATE BỘ LỌC (Ứng dụng chuẩn Checklist cho nhiều chọn & Radio cho 1 chọn)
     const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>(
         urlCatId ? [Number(urlCatId)] : []
@@ -281,12 +283,28 @@ export function ProductsPage()
                                     <Link to={`/products/${prod.productId}`}>
                                         <div className="space-y-3">
                                             <div className="aspect-square w-full rounded-xl bg-slate-100 overflow-hidden relative flex items-center justify-center">
-                                                <span className="text-4xl opacity-40 group-hover:scale-110 transition-transform">🏸</span>
+                                                {/* 1. Ảnh sản phẩm hoặc icon vợt giữ chỗ */}
+                                                {prod.imageUrl ? (
+                                                    <img
+                                                        src={prod.imageUrl.startsWith("http") ? prod.imageUrl : `${API_BASE_URL}${prod.imageUrl}`}
+                                                        alt={prod.productName}
+                                                        className="h-full w-full object-contain p-2 group-hover:scale-105 transition-transform duration-300"
+                                                        onError={(e) => {
+                                                            (e.target as HTMLElement).style.display = "none";
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <span className="text-4xl opacity-40 group-hover:scale-110 transition-transform">🏸</span>
+                                                )}
+
+                                                {/* 2. Nhãn thương hiệu góc trên bên trái */}
                                                 {prod.brandName && (
-                                                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-slate-100">
+                                                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded text-[10px] font-bold bg-slate-900 text-slate-100 z-10">
                                                         {prod.brandName}
                                                     </span>
                                                 )}
+
+                                                {/* 3. Nút Trái tim Yêu thích (Wishlist) góc trên bên phải */}
                                                 <button
                                                     type="button"
                                                     onClick={(e) => {

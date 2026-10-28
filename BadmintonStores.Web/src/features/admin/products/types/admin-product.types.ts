@@ -10,6 +10,7 @@ export type ProductListItem = {
     categoryName?: string | null;
     brandId?: number | null;
     brandName?: string | null;
+    imageUrl?: string;
     createdAt: string;
     updatedAt: string | null;
 }

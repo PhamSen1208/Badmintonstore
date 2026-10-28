@@ -10,6 +10,9 @@ import { getProductReviews, getProductReviewSummary, createProductReview, delete
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { CheckCircle2, MessageSquarePlus, User, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { getProductVariants } from "@/features/admin/product-variants/services/product-variant.service";
+import type { ProductVariantListItem } from "@/features/admin/product-variants/types/product-variant.types";
+import { getProductImages } from "@/features/admin/products/services/admin-product-images.service";
 
 const defaultSpecifications: ProductSpecification[] = [
     { label: "Độ cứng thân vợt", value: "Trung bình - Cứng" },
@@ -43,6 +46,10 @@ export function ProductDetailPage() {
     // State điều khiển Tab thông tin chi tiết (Mô tả, Thông số, Đánh giá)
     const [activeTab, setActiveTab] = useState<"description" | "specifications" | "reviews">("description");
 
+    //State quản lý các biến thể
+    const [variants, setVariants] = useState<ProductVariantListItem[]>([]);
+    const [selectedVariants, setSelectedVariant] = useState<ProductVariantListItem | null>(null);
+
     useEffect(() => {
         if (searchParams.get("tab") === "reviews") {
             setActiveTab("reviews");
@@ -51,19 +58,26 @@ export function ProductDetailPage() {
 
     // State chọn ảnh, chọn biến thể & số lượng
     const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-    const [selectedWeight, setSelectedWeight] = useState<string>("4U");
     const [quantity, setQuantity] = useState<number>(1);
 
     function handleAddToCart() {
         if (!product) return;
+        if(!selectedVariants)
+        {
+            toast.error("Sản phẩm hiện chưa có phân loại khả dụng");
+            return;
+        }
+        //Ghép thông tin hiển thị
+        const variantLabel = [selectedVariants.weight, selectedVariants.color, selectedVariants.size].filter(Boolean).join(" - ") || selectedVariants.sku;
         addToCart(
             {
                 productId: product.productId,
+                productVariantId: selectedVariants.productVariantId,
                 productCode: product.productCode,
                 productName: product.productName,
-                basePrice: product.basePrice,
-                image: mockImages[selectedImageIndex],
-                selectedVariant: selectedWeight,
+                basePrice: selectedVariants.salePrice ?? selectedVariants.price ?? product.basePrice,
+                image: product.images[selectedImageIndex],
+                selectedVariant: variantLabel,
             },
             quantity
         );
@@ -134,29 +148,40 @@ export function ProductDetailPage() {
         }
     }
 
-    // Ảnh mẫu thử nghiệm
-    const mockImages = [
-        "https://images.unsplash.com/photo-1626225967045-94408422615d?w=800&q=80",
-        "https://images.unsplash.com/photo-1613977257363-707ba9348227?w=800&q=80",
-        "https://images.unsplash.com/photo-1521537634581-0dced2efa2a7?w=800&q=80",
-    ];
-
     useEffect(() => {
         async function loadProductDetail() {
             if (!productId) return;
             try {
                 setIsLoading(true);
                 const pId = Number(productId);
-                const [data, revs, summary] = await Promise.all([
+                const [data, revs, summary, variantRes, imageRes] = await Promise.all([
                     getProductById(pId),
                     getProductReviews(pId),
                     getProductReviewSummary(pId),
+                    getProductVariants(pId),
+                    getProductImages(pId),
                 ]);
+                const variantList = variantRes?.items || [];
+                setVariants(variantList);
+                if (variantList.length > 0) {
+                    setSelectedVariant(variantList[0])
+                }
+
+                const domain = import.meta.env.VITE_API_BASE_URL;
+                const realImages = (imageRes || []).filter((img) => img.imageUrl).map((img) => 
+                    img.imageUrl.startsWith("http") ? img.imageUrl : `${domain}${img.imageUrl}`
+                );
+                const fallbackImages = [
+                    "https://images.unsplash.com/photo-1626225967045-94408422615d?w=800&q=80",
+                ];
+                const displayImages = realImages.length > 0 ? realImages : fallbackImages;
+
                 setProduct({
                     ...data,
                     stockQuantity: 10,
-                    images: mockImages,
+                    images: displayImages,
                 });
+                setSelectedImageIndex(0);
                 setReviews(revs);
                 setReviewSummary(summary);
             } catch {
@@ -210,7 +235,7 @@ export function ProductDetailPage() {
                     {/* Khung ảnh chính lớn */}
                     <div className="aspect-square w-full rounded-2xl bg-white border border-slate-200 p-4 flex items-center justify-center relative overflow-hidden shadow-sm">
                         <img
-                            src={mockImages[selectedImageIndex]}
+                            src={product.images[selectedImageIndex]}
                             alt={product.productName}
                             className="h-full w-full object-contain hover:scale-105 transition-transform duration-300"
                         />
@@ -221,7 +246,7 @@ export function ProductDetailPage() {
 
                     {/* Hàng Thumbnails ảnh góc khác */}
                     <div className="flex gap-3 overflow-x-auto pb-1">
-                        {mockImages.map((img, idx) => (
+                        {product.images.map((img, idx) => (
                             <button
                                 key={idx}
                                 type="button"
@@ -287,34 +312,35 @@ export function ProductDetailPage() {
                         <span>Liên hệ hotline <strong>0969.299.839</strong> để được chuyên viên tư vấn trực tiếp!</span>
                     </div>
 
-                    {/* Chọn Thuộc tính biến thể (Trọng lượng 3U/4U) */}
+                    {/* Chọn Thuộc tính biến thể */}
                     <div className="space-y-3">
                         <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
-                            Chọn thông số vợt: 
+                            Chọn phân loại: 
                         </label>
-                        <div className="flex gap-3">
-                            <button
-                                type="button"
-                                onClick={() => setSelectedWeight("3U")}
-                                className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
-                                    selectedWeight === "3U"
-                                        ? "border-orange-500 bg-orange-50 text-orange-600 shadow-sm"
-                                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                                }`}
-                            >
-                                3U (85g - 89g)
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setSelectedWeight("4U")}
-                                className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
-                                    selectedWeight === "4U"
-                                        ? "border-orange-500 bg-orange-50 text-orange-600 shadow-sm"
-                                        : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                                }`}
-                            >
-                                4U (80g - 84g)
-                            </button>
+                        <div className="flex flex-wrap gap-3">
+                            {variants.length === 0 ? (
+                                <span className="text-xs text-slate-400 italic">Chưa có phân loại hàng</span>
+                            ) : (
+                                variants.map((v) => {
+                                    const isSelected = selectedVariants?.productVariantId === v.productVariantId;
+                                    const label = [v.weight, v.color, v.size].filter(Boolean).join(" - ") || v.sku;
+
+                                    return (
+                                        <button
+                                            key={v.productVariantId}
+                                            type="button"
+                                            onClick={() => setSelectedVariant(v)}
+                                            className={`px-4 py-2 rounded-xl border text-xs font-bold transition-all ${
+                                                isSelected
+                                                    ? "border-orange-500 bg-orange-50 text-orange-600 shadow-sm"
+                                                    : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    );
+                                })
+                            )}
                         </div>
                     </div>
 
@@ -435,7 +461,7 @@ export function ProductDetailPage() {
                         {/* Banner/Video Hình ảnh trải nghiệm thực tế */}
                         <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-sm max-w-3xl mx-auto bg-slate-900 relative group">
                             <img
-                                src={mockImages[0]}
+                                src={product.images[0]}
                                 alt={product.productName}
                                 className="w-full h-80 sm:h-96 object-cover opacity-90 group-hover:scale-105 transition-transform duration-500"
                             />
@@ -479,7 +505,7 @@ export function ProductDetailPage() {
                                     {/* Hình ảnh sơ đồ công nghệ Rotational Generator System */}
                                     <div className="my-4 p-4 bg-white rounded-2xl border border-slate-200 max-w-lg mx-auto text-center space-y-2 shadow-xs">
                                         <img
-                                            src={mockImages[1]}
+                                            src={product.images[1] || product.images[0]}
                                             alt="Sơ đồ công nghệ Rotational Generator System"
                                             className="max-h-64 mx-auto rounded-xl object-contain"
                                         />
@@ -508,7 +534,7 @@ export function ProductDetailPage() {
                                     {/* Hình ảnh sơ đồ Isometric */}
                                     <div className="my-4 p-4 bg-white rounded-2xl border border-slate-200 max-w-lg mx-auto text-center space-y-2 shadow-xs">
                                         <img
-                                            src={mockImages[2]}
+                                            src={product.images[1] || product.images[0]}
                                             alt="Sơ đồ mặt vợt Isometric"
                                             className="max-h-64 mx-auto rounded-xl object-contain"
                                         />

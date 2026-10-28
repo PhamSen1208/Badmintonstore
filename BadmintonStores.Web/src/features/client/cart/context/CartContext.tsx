@@ -27,7 +27,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     function addToCart(newItem: Omit<CartItem, "quantity">, qtyToAdd = 1) {
         setItems(prevItems => {
             const existingIndex = prevItems.findIndex(
-                item => item.productId === newItem.productId && item.selectedVariant === newItem.selectedVariant
+                //Tìm xem biến thể đã có trong giỏ hàng chưa
+                item => item.productVariantId === newItem.productVariantId
             );
 
             if (existingIndex > -1) {
@@ -44,19 +45,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         });
     }
 
-    function removeFromCart(productId: number, variant?: string) {
-        setItems(prev => prev.filter(item => !(item.productId === productId && item.selectedVariant === variant)));
+    function removeFromCart(productVariantId: number) {
+        setItems(prev => prev.filter(item => item.productVariantId !== productVariantId));
         toast.info("Đã xóa sản phẩm khỏi giỏ hàng");
     }
 
-    function updateQuantity(productId: number, quantity: number, variant?: string) {
+    function updateQuantity(productVariantId: number, quantity: number) {
         if (quantity <= 0) {
-            removeFromCart(productId, variant);
+            removeFromCart(productVariantId);
             return;
         }
 
         setItems(prev => prev.map(item => {
-            if (item.productId === productId && item.selectedVariant === variant) {
+            if (item.productVariantId === productVariantId) {
                 return { ...item, quantity };
             }
             return item;
