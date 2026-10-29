@@ -9,6 +9,12 @@ public class GetProductDetailResult
     public string? Description { get; set; }
     public string? Warranty { get; set; }
     public string Status { get; set; } = string.Empty;
+
+    public int? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
+    public int? BrandId { get; set; }
+    public string? BrandName { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 

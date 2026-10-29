@@ -32,7 +32,9 @@ export type GetProductDetailResponse = {
     warranty: string | null;
     status: string;
     categoryId?: number | null;
+    categoryName?: string | null;
     brandId?: number | null;
+    brandName?: string | null;
     createdAt: string;
     updatedAt: string | null;
 }

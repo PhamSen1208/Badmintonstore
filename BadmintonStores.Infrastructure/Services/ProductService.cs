@@ -61,7 +61,11 @@ public class ProductService : IProductService
             throw new NotFoundException("PRODUCT_NOT_FOUND", "Mã sản phẩm không hợp lệ");
         }
 
-        var product = await _dbContext.Products.FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
+        var product = await _dbContext.Products
+        .Include(p => p.Category)
+        .Include(p => p.Brand)
+        .FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
+
         if(product == null)
         {
             throw new NotFoundException("PRODUCT_NOT_FOUND", "Không tìm thấy sản phẩm");
@@ -76,6 +80,12 @@ public class ProductService : IProductService
             Description = product.Description,
             Warranty = product.Warranty,
             Status = product.Status.ToString().ToLowerInvariant(),
+
+            CategoryId = product.CategoryId,
+            CategoryName = product.Category?.Name,
+            BrandId = product.BrandId,
+            BrandName = product.Brand?.Name,
+
             CreatedAt = product.CreatedAt,
             UpdatedAt = product.UpdatedAt
         };

@@ -63,6 +63,10 @@ public class ProductsController : ControllerBase
             Description = result.Description,
             Warranty = result.Warranty,
             Status = result.Status,
+            CategoryId = result.CategoryId,
+            CategoryName = result.CategoryName,
+            BrandId = result.BrandId,
+            BrandName = result.BrandName,
             CreatedAt = result.CreatedAt,
             UpdatedAt = result.UpdatedAt
         };
@@ -162,6 +166,6 @@ public class ProductsController : ControllerBase
                 UpdatedAt = o.UpdatedAt,
             }).ToList()
         };
-        return Ok(ApiResponse<GetProductsResponse>.Ok(response, "Lấy danh sách đơn hàng thành công"));
+        return Ok(ApiResponse<GetProductsResponse>.Ok(response, "Lấy danh sách sản phẩm thành công"));
     }
 }
