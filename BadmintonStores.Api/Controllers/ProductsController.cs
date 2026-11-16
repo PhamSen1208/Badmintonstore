@@ -40,6 +40,7 @@ public class ProductsController : ControllerBase
         var result = await _productService.CreateProductAsync(dto,cancellationToken);// Gửi dữ liệu sản phẩm xuống service, chờ service tạo sản phẩm xong, rồi lấy kết quả trả về.
         var response = new CreateProductResponse
         {
+            ProductId = result.ProductId,
             ProductCode = result.ProductCode,
             ProductName = result.ProductName,
             BasePrice = result.BasePrice,

@@ -8,12 +8,16 @@ using System.Text;
 using BadmintonStores.Application.Common.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using Scalar.AspNetCore;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
+
+
 
 builder.Services.AddControllers();
 
@@ -87,6 +91,12 @@ using (var scope = app.Services.CreateScope())
     var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await dbContext.Database.MigrateAsync(); // Tự động áp dụng các migration khi ứng dụng khởi động
     await DbSeeder.SeedAsync(dbContext); // Gọi phương thức seed dữ liệu
+}
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
 }
 
 // Configure the HTTP request pipeline.

@@ -122,7 +122,7 @@ public class ProductVariantService : IProductVariantService
         var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
         var pageSize = request.PageSize <= 0 ? 20 : request.PageSize;
 
-        if(pageSize >100)
+        if(pageSize > 100)
         {
             pageSize = 100;
         }
@@ -162,6 +162,7 @@ public class ProductVariantService : IProductVariantService
                 Color = v.Color,
                 Size = v.Size,
                 Status = v.Status.ToString().ToLowerInvariant(),
+                StockQuantity = v.Stocks.Sum(s => (int?)s.Quantity) ?? 0,
                 CreatedAt = v.CreatedAt,
                 UpdatedAt = v.UpdatedAt
             }).ToListAsync(cancellationToken);

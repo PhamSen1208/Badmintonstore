@@ -69,7 +69,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-    const subtotal = items.reduce((sum, item) => sum + item.basePrice * item.quantity, 0);
+    const subtotal = items.reduce((sum, item) => {
+        const stringingFee = item.stringing?.enabled ? (item.stringing.price || 0) : 0;
+        return sum + (item.basePrice + stringingFee) * item.quantity;
+    }, 0);
     const vat = 0; // Giá sản phẩm niêm yết đã bao gồm VAT
     const shippingFee = subtotal >= 1000000 || subtotal === 0 ? 0 : 30000;
     const totalAmount = subtotal + shippingFee;

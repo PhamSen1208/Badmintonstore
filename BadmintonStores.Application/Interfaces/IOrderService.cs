@@ -11,5 +11,6 @@ public interface IOrderService
     Task<UpdateOrderNoteResult> UpdateOrderNoteAsync(UpdateOrderNoteDto request, CancellationToken cancellationToken = default);
     Task<UpdateOrderStatusResult> UpdateOrderStatusAsync(int orderId, string status, CancellationToken cancellationToken = default);
     Task<UpdatePaymentStatusResult> UpdatePaymentStatusAsync(int orderId, string paymentStatus, CancellationToken cancellationToken = default);
+    Task<GetOrdersResult> GetMyOrdersAsync(int userId, int pageNumber, int pageSize, CancellationToken cancellationToken = default);
 
 }

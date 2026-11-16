@@ -103,6 +103,7 @@ public class ProductVariantsController : ControllerBase
                 Color = v.Color,
                 Size = v.Size,
                 Status = v.Status,
+                StockQuantity = v.StockQuantity,
                 CreatedAt = v.CreatedAt,
                 UpdatedAt = v.UpdatedAt
             }).ToList(),

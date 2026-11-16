@@ -1,3 +1,10 @@
+export type StringingOptions = {
+    enabled: boolean;
+    stringProductId?: number;
+    tension: string;
+    stringName: string;
+    price: number;
+}
 export type CartItem = {
     productId: number;
     productVariantId: number;
@@ -7,6 +14,7 @@ export type CartItem = {
     image?: string;
     selectedVariant?: string;//Tên hiển thị
     quantity: number;
+    stringing?: StringingOptions;
 };
 
 export type CartContextType = {
@@ -20,4 +28,6 @@ export type CartContextType = {
     vat: number;
     shippingFee: number;
     totalAmount: number;
+    stringing?: StringingOptions;
 };
+

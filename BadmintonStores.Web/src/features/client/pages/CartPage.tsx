@@ -39,6 +39,7 @@ export function CartPage() {
                 <div className="lg:col-span-8 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                     <div className="divide-y divide-slate-100">
                         {items.map((item) => (
+                            
                             <div key={`${item.productVariantId}`} className="py-4 flex gap-4 items-center">
                                 {/* Ảnh sản phẩm */}
                                 <div className="h-20 w-20 rounded-xl bg-slate-100 p-2 shrink-0 flex items-center justify-center">
@@ -57,6 +58,17 @@ export function CartPage() {
                                     {item.selectedVariant && (
                                         <span className="text-xs text-orange-600 font-semibold block">
                                             Phân loại: {item.selectedVariant}
+                                        </span>
+                                    )}
+                                    {/* Hiển thị cước động từ DB */}
+                                    {item.stringing?.enabled ? (
+                                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md mt-1">
+                                            🏸 Cước: {item.stringing.stringName} ({item.stringing.tension}) 
+                                            {item.stringing.price ? ` (+${currencyFormatter.format(item.stringing.price)})` : ""}
+                                        </span>
+                                    ) : (
+                                        <span className="text-[11px] text-slate-400 block mt-0.5">
+                                            Khung vợt chưa đan cước
                                         </span>
                                     )}
                                     <span className="font-semibold text-slate-900 text-sm block">

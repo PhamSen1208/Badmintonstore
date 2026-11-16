@@ -6,6 +6,7 @@ using BadmintonStores.Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using BadmintonStores.Application.Common.Security;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace BadmintonStores.Api.Controllers;
 
@@ -26,12 +27,21 @@ public class OrdersController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderRequest request, CancellationToken cancellationToken)
     {
+        int? currentUserId = null;
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (int.TryParse(userIdStr, out var parsedUserId))
+        {
+            currentUserId = parsedUserId;
+        }
         // Map CreateOrderRequest sang CreateOrderDto
         var dto = new CreateOrderDto
         {
             CustomerId = request.CustomerId,
+            UserId = currentUserId,
             WarehouseId = request.WarehouseId,
-            RecipientName = request.RecipientName,
+             RecipientName = !string.IsNullOrWhiteSpace(request.RecipientName) 
+                ? request.RecipientName 
+                : request.FullName,
             ShippingPhone = request.ShippingPhone,
             ShippingAddress = request.ShippingAddress,
             ShippingFee = request.ShippingFee,
@@ -108,6 +118,7 @@ public class OrdersController : ControllerBase
                 ProductVariantId = i.ProductVariantId,
                 SKU = i.SKU,
                 ProductName = i.ProductName,
+                ImageUrl = i.ImageUrl,
                 UnitPrice = i.UnitPrice,
                 Quantity = i.Quantity,
                 LineTotal = i.LineTotal
@@ -122,7 +133,7 @@ public class OrdersController : ControllerBase
         return Ok(ApiResponse<GetOrderDetailResponse>.Ok(response, "Lấy thông tin đơn hàng thành công"));
     }
     
-    [Authorize]
+    [Authorize(Roles = RoleNames.AdminOrStaff)]
     [HttpGet]
     public async Task<IActionResult> GetOrders([FromQuery] GetOrdersRequest request, CancellationToken cancellationToken)
     {
@@ -158,6 +169,44 @@ public class OrdersController : ControllerBase
         };
         return Ok(ApiResponse<GetOrdersResponse>.Ok(response, "Lấy danh sách đơn hàng thành công"));
     }
+
+    [Authorize]
+    [HttpGet("my-orders")]
+    public async Task<IActionResult> GetMyOrders([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
+    {
+        // 1. Lấy userId từ JWT Token an toàn
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdStr, out var userId))
+        {
+            return Unauthorized(ApiResponse<object>.Error("Không xác định được danh tính người dùng"));
+        }
+
+        // 2. Gọi Service xử lý logic
+        var result = await _orderService.GetMyOrdersAsync(userId, pageNumber, pageSize, cancellationToken);
+
+        // 3. Map từ DTO sang Response model quen thuộc của bạn
+        var response = new GetOrdersResponse
+        {
+            PageNumber = result.PageNumber,
+            PageSize = result.PageSize,
+            TotalItems = result.TotalItems,
+            TotalPages = result.TotalPages,
+            Items = result.Items.Select(o => new GetOrderItemResponse
+            {
+                OrderId = o.OrderId,
+                OrderCode = o.OrderCode,
+                CustomerId = o.CustomerId,
+                CustomerName = o.CustomerName,
+                Status = o.Status,
+                PaymentStatus = o.PaymentStatus,
+                TotalAmount = o.TotalAmount,
+                OrderDate = o.OrderDate
+            }).ToList()
+        };
+        return Ok(ApiResponse<GetOrdersResponse>.Ok(response, "Lấy danh sách đơn hàng của tôi thành công"));
+    }
+
+
 
     [Authorize]
     [HttpPatch("{orderId:int}/cancel")]

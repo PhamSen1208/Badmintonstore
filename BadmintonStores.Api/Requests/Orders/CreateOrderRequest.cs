@@ -5,6 +5,7 @@ public class CreateOrderRequest
     public int CustomerId {get; set;}
     public int WarehouseId {get; set;}
     public string? RecipientName {get; set;}
+    public string? FullName {get; set;}
     public string? ShippingPhone {get; set;}
     public string? ShippingAddress {get; set;}
     public decimal ShippingFee {get; set;}

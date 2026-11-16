@@ -13,6 +13,7 @@ public class GetProductVariantDetailResponse
     public string? Size {get; set;}
     public string? Color {get; set;}
     public string Status {get; set;} = string.Empty;
+    public int StockQuantity {get; set; }
     public DateTime CreatedAt {get; set;}
     public DateTime? UpdatedAt {get; set;}
 }

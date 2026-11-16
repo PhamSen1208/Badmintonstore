@@ -8,6 +8,7 @@ export type ProductVariantListItem = {
     color: string | null;
     size: string | null;
     status: string;
+    stockQuantity: number;
     createdAt: string;
     updatedAt: string | null;
 };

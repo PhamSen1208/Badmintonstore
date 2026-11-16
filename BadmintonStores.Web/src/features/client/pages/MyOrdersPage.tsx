@@ -17,16 +17,18 @@ export function MyOrdersPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<string>("all");
 
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
     // Fetch danh sách đơn hàng
     useEffect(() => {
         async function loadOrders() {
-            if (!user?.customerId) {
+            if (!user) {
                 setIsLoading(false);
                 return;
             }
             try {
                 setIsLoading(true);
-                const data = await getMyOrders(user.customerId);
+                const data = await getMyOrders();
                 setOrders(data.items || []);
             } catch (error) {
                 console.error("Error when fetching orders:", error);
@@ -36,7 +38,7 @@ export function MyOrdersPage() {
             }
         }
         loadOrders();
-    }, [user?.customerId]);
+    }, [user]);
 
     // Xử lý Hủy đơn hàng
     async function handleCancelOrder(orderId: number) {
@@ -384,33 +386,48 @@ export function MyOrdersPage() {
                                     <Package className="h-4 w-4 text-orange-600" /> Danh sách sản phẩm ({selectedOrder.items?.length || 0})
                                 </h4>
                                 <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden">
-                                    {selectedOrder.items?.map((item: any, idx: number) => (
-                                        <div key={idx} className="p-4 flex items-center justify-between gap-4 bg-white hover:bg-slate-50/50">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-xl bg-orange-50 text-orange-500 font-bold flex items-center justify-center text-lg shrink-0">
-                                                    🏸
+                                    {selectedOrder.items?.map((item: any, idx: number) => {
+                                        // Format đường dẫn ảnh đầy đủ
+                                        const fullImageUrl = item.imageUrl 
+                                            ? (item.imageUrl.startsWith("http") ? item.imageUrl : `${API_BASE_URL}${item.imageUrl}`) 
+                                            : null;
+
+                                        return (
+                                            <div key={idx} className="p-4 flex items-center justify-between gap-4 bg-white hover:bg-slate-50/50">
+                                                <div className="flex items-center gap-3">
+                                                    {fullImageUrl ? (
+                                                        <img
+                                                            src={fullImageUrl}
+                                                            alt={item.productName}
+                                                            className="h-12 w-12 rounded-xl object-contain border border-slate-200 bg-white p-1 shrink-0"
+                                                        />
+                                                    ) : (
+                                                        <div className="h-12 w-12 rounded-xl bg-orange-50 text-orange-500 font-bold flex items-center justify-center text-lg shrink-0">
+                                                            🏸
+                                                        </div>
+                                                    )}
+                                                    <div>
+                                                        <p className="font-bold text-slate-800">{item.productName}</p>
+                                                        <p className="text-xs text-slate-400">SKU: {item.sku} | Số lượng: x{item.quantity}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="font-bold text-slate-800">{item.productName}</p>
-                                                    <p className="text-xs text-slate-400">SKU: {item.sku} | Số lượng: x{item.quantity}</p>
+                                                <div className="flex items-center gap-3">
+                                                    <span className="font-bold text-slate-900">
+                                                        {currencyFormatter.format(item.lineTotal || (item.unitPrice * item.quantity))}
+                                                    </span>
+                                                    {selectedOrder.status?.toLowerCase() === "completed" && item.productId && (
+                                                        <Link
+                                                            to={`/products/${item.productId}?tab=reviews`}
+                                                            onClick={() => setSelectedOrder(null)}
+                                                            className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-lg border border-amber-200 transition-colors"
+                                                        >
+                                                            ⭐ Đánh giá
+                                                        </Link>
+                                                    )}
                                                 </div>
                                             </div>
-                                            <div className="flex items-center gap-3">
-                                                <span className="font-bold text-slate-900">
-                                                    {currencyFormatter.format(item.lineTotal || (item.unitPrice * item.quantity))}
-                                                </span>
-                                                {selectedOrder.status?.toLowerCase() === "completed" && item.productId && (
-                                                    <Link
-                                                        to={`/products/${item.productId}?tab=reviews`}
-                                                        onClick={() => setSelectedOrder(null)}
-                                                        className="px-3 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 font-bold text-xs rounded-lg border border-amber-200 transition-colors"
-                                                    >
-                                                        ⭐ Đánh giá
-                                                    </Link>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
 

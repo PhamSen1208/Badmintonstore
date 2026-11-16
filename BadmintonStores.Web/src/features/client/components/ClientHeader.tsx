@@ -1,38 +1,70 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Search, ShoppingBag, ShieldCheck, Truck, PhoneCall, ChevronDown, ChevronRight } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Search, ShoppingBag, ShieldCheck, Truck, PhoneCall, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { getCategories } from "@/features/admin/categories/services/admin-categories.service";
 import { getBrands } from "@/features/admin/brands/services/admin-brands.service";
 import { useCart } from "@/features/client/cart/context/CartContext";
 import { UserNavDropdown } from "./UserNavDropdown";
 import type { CategoryListItem } from "@/features/admin/categories/types/admin-categories.types";
 import type { BrandListItem } from "@/features/admin/brands/types/admin-brands.types";
+import { getProducts } from "@/features/admin/products/services/admin-product.service";
+import { currencyFormatter } from "@/lib/formatters";
+import type { ProductListItem } from "@/features/admin/products/types/admin-product.types";
 
 export function ClientHeader() {
     const location = useLocation();
+    const navigate = useNavigate();
     const { totalItems } = useCart();
+
+    const [ searchResults, setSearchResults] = useState<ProductListItem[]>([]);
+    const [ isSearching, setIsSearching] = useState(false);
+
     const [searchQuery, setSearchQuery] = useState("");
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isProductMenuOpen, setIsProductMenuOpen] = useState(false);
     const [categories, setCategories] = useState<CategoryListItem[]>([]);
     const [brands, setBrands] = useState<BrandListItem[]>([]);
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
     useEffect(() => {
-        async function loadDropdowns() {
-            try {
-                const [categoriesData, brandsData] = await Promise.all([
-                    getCategories(),
-                    getBrands(),
-                ]);
-                setCategories(Array.isArray(categoriesData) ? categoriesData : []);
-                setBrands(Array.isArray(brandsData) ? brandsData : []);
-            } catch {
-                setCategories([]);
-                setBrands([]);
-            }
+        if(!searchQuery.trim())
+        {
+            setSearchResults([]);
+            setIsSearching(false);
+            return;
         }
-        loadDropdowns();
-    }, []);
+        else
+        {
+            setIsSearching(true);
+            const timer = setTimeout(async () => {
+                try
+                {
+                    const data = await getProducts({
+                        keyword : searchQuery.trim(),
+                        pageSize: 10,
+                    });
+                    setSearchResults(data.items ?? []);
+                }   
+                catch
+                {
+                    setSearchResults([]);
+                }
+                finally
+                {
+                    setIsSearching(false);
+                }
+            }, 300);
+
+            return () => clearTimeout(timer);
+        }
+    }, [searchQuery]);
+
+    function handleSearchKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+        if (e.key === "Enter" && searchQuery.trim()) {
+            setIsSearchFocused(false);
+            navigate(`/products?keyword=${encodeURIComponent(searchQuery.trim())}`);
+        }
+    }   
 
     // Hàm kiêm tra và trả về class highlight theo đúng route hiện tại
     function getLinkClass(path: string, isExact = true) {
@@ -43,19 +75,7 @@ export function ClientHeader() {
         return isActive
             ? "py-3.5 px-2 border-b-2 border-orange-500 text-orange-600 whitespace-nowrap transition-colors font-bold"
             : "py-3.5 px-2 border-b-2 border-transparent text-slate-700 hover:text-orange-600 whitespace-nowrap transition-colors font-bold";
-    }
-
-    // Dữ liệu gợi ý mẫu (Sau này nối API getProducts thực tế)
-    const mockSearchResults = [
-        { id: 1, name: "Vợt cầu lông Yonex Astrox 88D Pro", price: "4.350.000 ₫", brand: "Yonex" },
-        { id: 2, name: "Giày Badminton Victor P9200 Tím", price: "2.150.000 ₫", brand: "Victor" },
-        { id: 3, name: "Vợt Li-Ning Halbertec 8000", price: "4.100.000 ₫", brand: "Li-Ning" },
-        { id: 4, name: "Quả cầu lông VinaStar (Hộp 12 quả)", price: "260.000 ₫", brand: "VinaStar" },
-    ];
-
-    const filteredResults = searchQuery.trim()
-        ? mockSearchResults.filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        : [];
+    };
 
     return (
         <header className="sticky top-0 z-50 bg-slate-900 text-slate-100 shadow-xl border-b border-slate-800">
@@ -85,48 +105,91 @@ export function ClientHeader() {
                 </Link>
 
                 {/* Live Search Bar (Gõ + Scroll) */}
+                                {/* Live Search Bar (Gõ + Gợi ý thời gian thực) */}
                 <div className="relative flex-1 max-w-xl hidden md:block">
                     <div className="relative">
                         <input
                             type="text"
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={handleSearchKeyDown}
                             onFocus={() => setIsSearchFocused(true)}
-                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                            placeholder="VD: Yonex Astrox 88D Pro, Vợt 4U, Giày Victor..."
-                            className="w-full h-10 pl-10 pr-4 rounded-xl bg-slate-800 border border-slate-700 text-slate-100 text-sm placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                            onBlur={() => setTimeout(() => setIsSearchFocused(false), 250)}
+                            placeholder="Tìm kiếm vợt cầu lông, giày, cước đan, phụ kiện..."
+                            className="w-full h-10 pl-10 pr-10 rounded-xl bg-slate-800 border border-slate-700 text-slate-100 text-sm placeholder:text-slate-400 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
                         />
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        
+                        {/* Loading Icon khi đang gọi API */}
+                        {isSearching && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-orange-500 animate-spin" />
+                        )}
                     </div>
 
-                    {/* Dropdown Kết quả Live Search vừa Gõ vừa Scroll */}
+                    {/* Dropdown Kết quả Live Search */}
                     {isSearchFocused && searchQuery.trim() && (
                         <div className="absolute left-0 right-0 top-full mt-2 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50">
-                            <div className="p-2.5 border-b border-slate-700 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
-                                Kết quả tìm kiếm ({filteredResults.length})
+                            <div className="p-2.5 border-b border-slate-700 text-[11px] text-slate-400 font-semibold uppercase tracking-wider flex items-center justify-between">
+                                <span>Gợi ý sản phẩm ({searchResults.length})</span>
+                                {isSearching && <span className="text-orange-400 lowercase font-normal">đang tìm...</span>}
                             </div>
                             
-                            {/* Khung Cuộn Scroll khi danh sách dài */}
+                            {/* Khung cuộn kết quả */}
                             <div className="max-h-80 overflow-y-auto divide-y divide-slate-700/50">
-                                {filteredResults.length > 0 ? (
-                                    filteredResults.map(item => (
-                                        <Link
-                                            key={item.id}
-                                            to={`/products/${item.id}`}
-                                            className="p-3 flex items-center justify-between hover:bg-slate-700/60 transition-colors group"
-                                        >
-                                            <div>
-                                                <p className="text-sm font-medium text-slate-100 group-hover:text-orange-400 transition-colors">
-                                                    {item.name}
-                                                </p>
-                                                <span className="text-xs text-slate-400">{item.brand}</span>
-                                            </div>
-                                            <span className="text-sm font-bold text-orange-400">{item.price}</span>
-                                        </Link>
-                                    ))
+                                {isSearching ? (
+                                    <div className="p-6 text-center text-sm text-slate-400 flex items-center justify-center gap-2">
+                                        <Loader2 className="h-4 w-4 animate-spin text-orange-500" />
+                                        <span>Đang tìm kiếm...</span>
+                                    </div>
+                                ) : searchResults.length > 0 ? (
+                                    <>
+                                        {searchResults.map((item) => (
+                                            <Link
+                                                key={item.productId}
+                                                to={`/products/${item.productId}`}
+                                                onClick={() => setIsSearchFocused(false)}
+                                                className="p-3 flex items-center gap-3 hover:bg-slate-700/60 transition-colors group"
+                                            >
+                                                {/* Ảnh Thumbnail sản phẩm */}
+                                                <img
+                                                    src={item.imageUrl ? `${API_BASE_URL}${item.imageUrl}` : "https://placehold.co/40x40/1e293b/f97316?text=BS"}
+                                                    alt={item.productName}
+                                                    className="w-10 h-10 object-cover rounded-lg bg-slate-900 border border-slate-700 shrink-0"
+                                                    onError={(e) => {
+                                                        (e.target as HTMLImageElement).src = "https://placehold.co/40x40/1e293b/f97316?text=BS";
+                                                    }}
+                                                />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-sm font-medium text-slate-100 group-hover:text-orange-400 transition-colors truncate">
+                                                        {item.productName}
+                                                    </p>
+                                                    <span className="text-xs text-slate-400">
+                                                        {item.brandName || "Chính hãng"}
+                                                    </span>
+                                                </div>
+                                                <span className="text-sm font-bold text-orange-400 shrink-0">
+                                                    {currencyFormatter.format(item.basePrice)}
+                                                </span>
+                                            </Link>
+                                        ))}
+
+                                        {/* Nút Xem tất cả kết quả */}
+                                        <div className="p-2.5 text-center bg-slate-900/60 border-t border-slate-700/60">
+                                            <button
+                                                type="button"
+                                                onMouseDown={() => {
+                                                    setIsSearchFocused(false);
+                                                    navigate(`/products?keyword=${encodeURIComponent(searchQuery.trim())}`);
+                                                }}
+                                                className="text-xs font-semibold text-orange-400 hover:text-orange-300 transition-colors"
+                                            >
+                                                Xem tất cả kết quả cho "{searchQuery}" →
+                                            </button>
+                                        </div>
+                                    </>
                                 ) : (
-                                    <div className="p-4 text-center text-sm text-slate-400">
-                                        Không tìm thấy sản phẩm phù hợp với "{searchQuery}"
+                                    <div className="p-6 text-center text-sm text-slate-400">
+                                        Không tìm thấy sản phẩm nào phù hợp với "<span className="text-slate-200">{searchQuery}</span>"
                                     </div>
                                 )}
                             </div>

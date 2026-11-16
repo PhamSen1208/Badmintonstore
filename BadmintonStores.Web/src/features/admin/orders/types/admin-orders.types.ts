@@ -29,6 +29,7 @@ export type GetOrdersResponse = {
 export type GetOrderDetailItem = {
     productVariantId: number;
     productName: string;
+    imageUrl?: string | null;    
     sku: string;
     quantity: number;
     unitPrice: number;

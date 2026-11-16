@@ -4,6 +4,7 @@ public class CreateOrderDto
 {
     public int CustomerId { get; set; }
     public int WarehouseId { get; set; }
+    public int? UserId { get; set; }
     public string? RecipientName { get; set; }
     public string? ShippingPhone { get; set; }
     public string? ShippingAddress { get; set; }

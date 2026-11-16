@@ -20,6 +20,17 @@ public class OrderService : IOrderService
 
     public async Task<CreateOrderResult> CreateOrderAsync(CreateOrderDto request, CancellationToken cancellationToken = default)
     {
+        //Tự động lấy userId của người dùng đăng nhập
+        if(request.UserId.HasValue)
+        {
+            var customer = await _dbContext.Customers
+                .FirstOrDefaultAsync(x => x.UserId == request.UserId.Value , cancellationToken);
+            if(customer != null)
+            {
+                request.CustomerId = customer.Id;
+            }
+        }
+        
         ValidateRequest(request);
         var customerExists = await _dbContext.Customers.AnyAsync(c => c.Id == request.CustomerId, cancellationToken);
         if(!customerExists)
@@ -290,7 +301,17 @@ public class OrderService : IOrderService
             throw new NotFoundException("ORDER_NOT_FOUND", "Đơn hàng không tồn tại");
         }
 
-        var payment = order.Payments.FirstOrDefault(); // Giả sử mỗi đơn hàng chỉ có 1 bản ghi payment
+        //ds ảnh dại diện sp có trong đơn hàng
+        var productIds = order.OrderDetails.Select(o => o.ProductId).Distinct().ToList();
+        var images = await _dbContext.ProductImages.Where(pi => productIds.Contains(pi.ProductId))
+                .OrderByDescending(pi => pi.IsPrimary)
+                .ThenBy(pi => pi.DisplayOrder)
+                .ToListAsync(cancellationToken);
+        
+        var productImages = images.GroupBy(pi => pi.ProductId).ToDictionary(g => g.Key, g => g.First().ImageUrl);
+
+        var payment = order.Payments.FirstOrDefault();
+
         return new GetOrderDetailResult
         {
             OrderId = order.Id,
@@ -314,6 +335,7 @@ public class OrderService : IOrderService
                 ProductVariantId = od.ProductVariantId,
                 SKU = od.SKU,
                 ProductName = od.ProductName,
+                ImageUrl = productImages.TryGetValue(od.ProductId, out var img) ? img : null,
                 UnitPrice = od.UnitPrice,
                 Quantity = od.Quantity,
                 LineTotal = od.LineTotal
@@ -357,7 +379,7 @@ public class OrderService : IOrderService
         var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
         var items = await ordersQuery
-            .OrderByDescending(o => o.OrderDate) // Sắp xếp theo ngày tạo đơn mới nhất
+            .OrderByDescending(o => o.OrderDate)
             .Skip((page - 1) * pageSize) // Bỏ qua các bản ghi của các trang trước đó
             .Take(pageSize) // Lấy số bản ghi của trang hiện tại
             .Select(o => new GetOrdersItemResult 
@@ -386,7 +408,7 @@ public class OrderService : IOrderService
 
     public async Task<CancelOrderResult> CancelOrderResultAsync(int orderId, CancellationToken cancellationToken = default)
     {
-       if(orderId <= 0)
+        if(orderId <= 0)
         {
             throw new ValidationException("INVALID_ORDER_ID", "OrderId không hợp lệ");
         }
@@ -457,6 +479,19 @@ public class OrderService : IOrderService
         {
             order.PaymentStatus = PaymentStatus.Refunded;
         }
+        
+        var couponHistory =  await _dbContext.CouponHistories.FirstOrDefaultAsync(ch => ch.OrderId == orderId, cancellationToken);
+        if(couponHistory != null)
+        {
+            var coupon = await _dbContext.Coupons.FirstOrDefaultAsync(c => c.Id == couponHistory.CouponId, cancellationToken);
+
+            if(coupon != null && coupon.QuantityUsed > 0)
+            {
+                coupon.QuantityUsed--;
+            }
+            _dbContext.CouponHistories.Remove(couponHistory);
+        }
+        
         order.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -486,6 +521,11 @@ public class OrderService : IOrderService
             throw new NotFoundException("ORDER_NOT_FOUND", $"Không tìm thấy đơn hàng với Id = {orderId}");
         }
 
+        if(order.Status == OrderStatus.Shipping && newStatus != OrderStatus.Completed && newStatus != OrderStatus.Cancelled)
+        {
+            throw new ValidationException("INVALID_STATUS_TRANSITION", $"Không thể chuyển đơn hàng từ trạng thái {order.Status} sang {newStatus}");
+        }
+
         if(order.Status == OrderStatus.Completed)
         {
             throw new ValidationException("ORDER_ALREADY_COMPLETED", "Đơn hàng đã được hoàn thành trước đó");
@@ -495,11 +535,11 @@ public class OrderService : IOrderService
         {
             throw new ValidationException("ORDER_ALREADY_CANCELLED", "Đơn hàng đã được hủy trước đó");
         }
-
-        if(order.Status == OrderStatus.Shipping && newStatus != OrderStatus.Completed)
+        if(order.Status == OrderStatus.Shipping && newStatus != OrderStatus.Completed && newStatus != OrderStatus.Cancelled)
         {
             throw new ValidationException("INVALID_STATUS_TRANSITION", $"Không thể chuyển đơn hàng từ trạng thái {order.Status} sang {newStatus}");
         }
+       
         //Nếu admin -> hủy đơn -> gọi lại logic tồn kho
         if(newStatus == OrderStatus.Cancelled)
         {
@@ -589,6 +629,22 @@ public class OrderService : IOrderService
             OrderCode = order.OrderCode,
             Note = order.Note
         };
+    }
+
+    public async Task<GetOrdersResult> GetMyOrdersAsync(int userId, int pageNumber, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var customer = await _dbContext.Customers.FirstOrDefaultAsync(c => c.Id == userId, cancellationToken);
+        if(customer == null)
+        {
+            return new GetOrdersResult();
+        }
+        var query = new GetOrdersQuery
+        {
+            CustomerId = customer.Id,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        };
+        return await GetOrdersAsync(query, cancellationToken);
     }
 
     private static void ValidateRequest(CreateOrderDto request)

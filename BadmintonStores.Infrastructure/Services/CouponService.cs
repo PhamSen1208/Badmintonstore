@@ -28,13 +28,12 @@ public class CouponService : ICouponService
             throw new ValidationException("INVALID_ORDER_SUBTOTAL", "Tổng tiền đơn hàng phải lớn hơn 0");
         }
         var cleanCode = request.CouponCode.Trim();
-        var coupon = await _dbContext.Coupons.FirstOrDefaultAsync(c => string.Equals(c.CouponCode, cleanCode, StringComparison.OrdinalIgnoreCase), cancellationToken);
-
+        var coupon = await _dbContext.Coupons.FirstOrDefaultAsync(c => c.CouponCode.ToUpper() == cleanCode.ToUpper(), cancellationToken);
         if(coupon == null)
         {
             throw new NotFoundException("COUPON_NOT_FOUND", "Không tìm thấy mã giảm giá");
         }
-        if(coupon.EndDate < DateTime.Now)
+        if(coupon.EndDate < DateTime.UtcNow)
         {
             throw new ValidationException("COUPON_EXPIRED", "Mã giảm giá đã hết hạn");
         }
@@ -203,7 +202,7 @@ public class CouponService : ICouponService
     public async Task<CreateCouponResult> CreateCouponAsync(CreateCouponDto request, CancellationToken cancellationToken = default)
     {
         var codeUpper = request.CouponCode.Trim().ToUpperInvariant();
-        bool exists = await _dbContext.Coupons.AnyAsync(c => string.Equals(c.CouponCode, codeUpper, StringComparison.OrdinalIgnoreCase), cancellationToken);
+        bool exists = await _dbContext.Coupons.AnyAsync(c => c.CouponCode.ToUpper() == codeUpper, cancellationToken);
         if (exists)
         {
             throw new ValidationException("COUPON_EXISTS", $"Mã giảm giá '{codeUpper}' đã tồn tại trong hệ thống.");
@@ -255,8 +254,7 @@ public class CouponService : ICouponService
         }
 
         var codeUpper = request.CouponCode.Trim().ToUpperInvariant();
-        bool exists = await _dbContext.Coupons.AnyAsync(c => c.Id != couponId && string.Equals(c.CouponCode, codeUpper, StringComparison.OrdinalIgnoreCase), cancellationToken);
-        if (exists)
+        bool exists = await _dbContext.Coupons.AnyAsync(c => c.Id != couponId && c.CouponCode.ToUpper() == codeUpper, cancellationToken);        if (exists)
         {
             throw new ValidationException("COUPON_EXISTS", $"Mã giảm giá '{codeUpper}' đã được sử dụng bởi mã khác.");
         }

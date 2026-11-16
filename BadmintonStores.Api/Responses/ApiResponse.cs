@@ -14,5 +14,14 @@ public class ApiResponse<T>
             Message = message,
             Data = data
         };
+    }   
+    public static ApiResponse<T?> Error(string message)
+    {
+        return new ApiResponse<T?>
+        {
+            Success = false,
+            Message = message,
+            Data = default
+        };
     }
 }

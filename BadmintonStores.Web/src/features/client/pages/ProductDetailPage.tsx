@@ -13,6 +13,8 @@ import { toast } from "sonner";
 import { getProductVariants } from "@/features/admin/product-variants/services/product-variant.service";
 import type { ProductVariantListItem } from "@/features/admin/product-variants/types/product-variant.types";
 import { getProductImages } from "@/features/admin/products/services/admin-product-images.service";
+import { getProducts } from "@/features/admin/products/services/admin-product.service";
+import type { ProductListItem } from "@/features/admin/products/types/admin-product.types";
 
 const defaultSpecifications: ProductSpecification[] = [
     { label: "Độ cứng thân vợt", value: "Trung bình - Cứng" },
@@ -34,6 +36,7 @@ export function ProductDetailPage() {
     const [product, setProduct] = useState<ClientProductDetail | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
+
     // State đánh giá & nhận xét
     const [reviews, setReviews] = useState<ProductReview[]>([]);
     const [reviewSummary, setReviewSummary] = useState<ProductReviewSummary | null>(null);
@@ -42,6 +45,12 @@ export function ProductDetailPage() {
     const [newRating, setNewRating] = useState(5);
     const [newComment, setNewComment] = useState("");
     const [showReviewModal, setShowReviewModal] = useState(false);
+    const [enableStringing, setEnableStringing] = useState(false);
+    const [stringProducts, setStringProducts] = useState<ProductListItem[]>([]);
+    const [selectedStringProduct, setSelectedStringProduct] = useState<ProductListItem | null>(null);
+    const [selectedTension, setSelectedTension] = useState("10.5 kg");
+    const [customTension, setCustomTension] = useState("");
+    const [isLoadingStrings, setIsLoadingStrings] = useState(false);
 
     // State điều khiển Tab thông tin chi tiết (Mô tả, Thông số, Đánh giá)
     const [activeTab, setActiveTab] = useState<"description" | "specifications" | "reviews">("description");
@@ -49,6 +58,28 @@ export function ProductDetailPage() {
     //State quản lý các biến thể
     const [variants, setVariants] = useState<ProductVariantListItem[]>([]);
     const [selectedVariants, setSelectedVariant] = useState<ProductVariantListItem | null>(null);
+    const isRacket = product?.categoryName?.toLowerCase().includes("vợt") || 
+                     product?.productName.toLowerCase().includes("vợt");
+
+    useEffect(() => {
+        async function fetchStringProducts() {
+            if (!isRacket) return;
+            try {
+                setIsLoadingStrings(true);
+                const res = await getProducts({ keyword: "cước", pageSize: 20 });
+                const availableStrings = (res.items || []).filter(p => p.status?.toLowerCase() === "active");
+                setStringProducts(availableStrings);
+                if (availableStrings.length > 0) {
+                    setSelectedStringProduct(availableStrings[0]); // Mặc định chọn loại cước đầu tiên
+                }
+            } catch (err) {
+                console.error("Không thể tải danh sách cước đan:", err);
+            } finally {
+                setIsLoadingStrings(false);
+            }
+        }
+        fetchStringProducts();
+    }, [isRacket]);
 
     useEffect(() => {
         if (searchParams.get("tab") === "reviews") {
@@ -69,6 +100,7 @@ export function ProductDetailPage() {
         }
         //Ghép thông tin hiển thị
         const variantLabel = [selectedVariants.weight, selectedVariants.color, selectedVariants.size].filter(Boolean).join(" - ") || selectedVariants.sku;
+        const finalTension = customTension.trim() ? `${customTension.trim()} kg` : selectedTension;
         addToCart(
             {
                 productId: product.productId,
@@ -78,6 +110,14 @@ export function ProductDetailPage() {
                 basePrice: selectedVariants.salePrice ?? selectedVariants.price ?? product.basePrice,
                 image: product.images[selectedImageIndex],
                 selectedVariant: variantLabel,
+
+                stringing: isRacket ? {
+                    enabled: enableStringing,
+                    stringProductId: enableStringing ? selectedStringProduct?.productId : undefined,
+                    stringName: enableStringing ? selectedStringProduct?.productName : undefined,
+                    tension: enableStringing ? finalTension : undefined,
+                    price: enableStringing ? (selectedStringProduct?.basePrice || 0) : 0,
+                } : undefined,
             },
             quantity
         );
@@ -175,10 +215,11 @@ export function ProductDetailPage() {
                     "https://images.unsplash.com/photo-1626225967045-94408422615d?w=800&q=80",
                 ];
                 const displayImages = realImages.length > 0 ? realImages : fallbackImages;
+                const totalStock = variantList.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
 
                 setProduct({
                     ...data,
-                    stockQuantity: 10,
+                    stockQuantity: totalStock ,
                     images: displayImages,
                 });
                 setSelectedImageIndex(0);
@@ -213,7 +254,8 @@ export function ProductDetailPage() {
         );
     }
 
-    const isOutOfStock = product.stockQuantity <= 0;
+    const currentStock = selectedVariants ? selectedVariants.stockQuantity : product.stockQuantity;
+    const isOutOfStock = currentStock <= 0;
 
     return (
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -317,6 +359,133 @@ export function ProductDetailPage() {
                         <label className="text-xs font-bold text-slate-900 uppercase tracking-wider block">
                             Chọn phân loại: 
                         </label>
+                        {/* KHỐI DỊCH VỤ CĂNG CƯỚC VỢT ĐỘNG */}
+                        {isRacket && (
+                            <div className="rounded-2xl border border-orange-200 bg-orange-50/40 p-4 space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-xs font-bold text-slate-900 uppercase flex items-center gap-1.5">
+                                        🏸 Dịch vụ căng cước vợt:
+                                    </label>
+                                    <span className="text-[11px] font-semibold text-orange-600 bg-orange-100/80 px-2.5 py-0.5 rounded-full">
+                                        Miễn phí công đan
+                                    </span>
+                                </div>
+
+                                {/* 2 Lựa chọn: Khung vợt trần HOẶC Căng sẵn */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setEnableStringing(false)}
+                                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all text-center ${
+                                            !enableStringing
+                                                ? "border-orange-500 bg-white text-orange-600 shadow-xs"
+                                                : "border-slate-200 bg-white/60 text-slate-600 hover:bg-white"
+                                        }`}
+                                    >
+                                        Khung vợt trần
+                                        <span className="block text-[10px] font-normal text-slate-400 mt-0.5">Chưa đan cước</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setEnableStringing(true)}
+                                        className={`py-2.5 px-3 rounded-xl border text-xs font-bold transition-all text-center ${
+                                            enableStringing
+                                                ? "border-orange-500 bg-white text-orange-600 shadow-xs"
+                                                : "border-slate-200 bg-white/60 text-slate-600 hover:bg-white"
+                                        }`}
+                                    >
+                                        Đan cước sẵn ✨
+                                        <span className="block text-[10px] font-normal text-slate-400 mt-0.5">Căng theo số kg yêu cầu</span>
+                                    </button>
+                                </div>
+
+                                {/* Menu chọn Cước từ DB & Số kg (chỉ hiện khi chọn Đan cước sẵn) */}
+                                {enableStringing && (
+                                    <div className="space-y-4 pt-2 border-t border-orange-100">
+                                        {/* 1. Danh sách cước lấy động từ Database */}
+                                        <div>
+                                            <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                                                1. Chọn loại cước (từ Database):
+                                            </span>
+                                            {isLoadingStrings ? (
+                                                <p className="text-xs text-slate-400 italic">Đang tải danh sách cước từ kho...</p>
+                                            ) : stringProducts.length === 0 ? (
+                                                <p className="text-xs text-amber-600">Hiện chưa có loại cước nào trong kho.</p>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                    {stringProducts.map((str) => (
+                                                        <button
+                                                            key={str.productId}
+                                                            type="button"
+                                                            onClick={() => setSelectedStringProduct(str)}
+                                                            className={`p-2.5 rounded-xl border text-left transition-all ${
+                                                                selectedStringProduct?.productId === str.productId
+                                                                    ? "border-orange-500 bg-white shadow-xs"
+                                                                    : "border-slate-200 bg-white/80 hover:border-slate-300"
+                                                            }`}
+                                                        >
+                                                            <div className="flex justify-between items-center">
+                                                                <span className="text-xs font-bold text-slate-800 line-clamp-1">{str.productName}</span>
+                                                                <span className="text-[11px] font-extrabold text-orange-600 shrink-0 ml-1">
+                                                                    +{currencyFormatter.format(str.basePrice)}
+                                                                </span>
+                                                            </div>
+                                                            <p className="text-[10px] text-slate-400 line-clamp-1 mt-0.5">{str.productCode}</p>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* 2. Chọn mức căng (Số kg): Nút nhanh + Ô gõ tự do */}
+                                        <div>
+                                            <span className="text-[11px] font-bold text-slate-700 block mb-1.5">
+                                                2. Chọn mức căng (Số kg):
+                                            </span>
+                                            {/* Nút bấm chọn nhanh */}
+                                            <div className="flex flex-wrap gap-2 mb-2.5">
+                                                {["10.0 kg", "10.5 kg", "11.0 kg", "11.5 kg", "12.0 kg"].map((ten) => (
+                                                    <button
+                                                        key={ten}
+                                                        type="button"
+                                                        onClick={() => {
+                                                            setSelectedTension(ten);
+                                                            setCustomTension(""); // Xóa ô tự do nếu bấm nút nhanh
+                                                        }}
+                                                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all ${
+                                                            !customTension && selectedTension === ten
+                                                                ? "border-orange-500 bg-orange-500 text-white font-bold"
+                                                                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                                                        }`}
+                                                    >
+                                                        {ten}
+                                                    </button>
+                                                ))}
+                                            </div>
+
+                                            {/* Ô nhập số kg lẻ tự do */}
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="number"
+                                                    step="0.1"
+                                                    min="9"
+                                                    max="13"
+                                                    value={customTension}
+                                                    onChange={(e) => setCustomTension(e.target.value)}
+                                                    placeholder="Hoặc gõ số kg lẻ (VD: 10.2, 10.8)..."
+                                                    className="w-full max-w-[260px] px-3 py-1.5 text-xs rounded-xl border border-slate-200 bg-white focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500"
+                                                />
+                                                {customTension && (
+                                                    <span className="text-xs font-bold text-emerald-600">
+                                                        Đã chọn: {customTension} kg
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                         <div className="flex flex-wrap gap-3">
                             {variants.length === 0 ? (
                                 <span className="text-xs text-slate-400 italic">Chưa có phân loại hàng</span>

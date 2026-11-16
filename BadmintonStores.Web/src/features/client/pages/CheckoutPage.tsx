@@ -107,6 +107,14 @@ export function CheckoutPage() {
         try {
             const fullName = `${formData.firstName.trim()} ${formData.lastName.trim()}`;
             const fullAddress = `${formData.streetAddress.trim()}, ${formData.ward}, ${formData.city}`;
+            const stringingNotes = items
+                .filter(i => i.stringing?.enabled)
+                .map(i => `[${i.productName}]: Căng ${i.stringing?.stringName} (${i.stringing?.tension})`)
+                .join("; ");
+            const fullNote = [
+                formData.note?.trim(),
+                stringingNotes ? `YÊU CẦU CĂNG CƯỚC: ${stringingNotes}` : ""
+            ].filter(Boolean).join(" | ")
 
             const payload = {
                 customerId: user?.customerId || 1,
@@ -118,7 +126,7 @@ export function CheckoutPage() {
                 shippingFee: shippingFee,
                 discountAmount: appliedDiscount,
                 couponCode: appliedCouponCode || undefined,
-                note: formData.note || "Không có ghi chú",
+                note: fullNote || "Không có ghi chú",
                 items: items.map(item => ({
                     productVariantId: item.productVariantId,   
                     quantity: item.quantity,

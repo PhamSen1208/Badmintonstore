@@ -8,13 +8,12 @@ export async function createClientOrder(payload: CreateClientOrderRequest) {
     return response.data.data;
 }
 
-export async function getMyOrders(customerId: number)
+export async function getMyOrders()
 {
     const response = await api.get<ApiResponse<GetOrdersResponse>>(
-        `/api/orders`,
+        `/api/orders/my-orders`,
         {
             params:{
-                customerId: customerId,
                 pageNumber: 1,
                 pageSize: 10
             }
